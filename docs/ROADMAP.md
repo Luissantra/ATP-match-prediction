@@ -4,6 +4,20 @@
 > Cada hallazgo: `[CRITICIDAD]` — problema — fix. Orden: impacto en modelo → producción → código → viz.
 > Estado: `[ ]` pendiente · `[~]` en curso · `[x]` hecho.
 
+## 🧭 Próximos pasos (orden recomendado)
+
+**Todos los P0 críticos están resueltos** (C1·C2·C3·C4). El siguiente tramo:
+
+1. **▶️ I1 · Calibración del modelo** *(siguiente)* — `CalibratedClassifierCV(isotonic)` sobre fold temporal. Rápido y de alto valor: C2 hizo central la probabilidad, calibrarla la hace fiable. Previo natural a la épica (modelos calibrados se comparan mejor).
+2. **Épica multi-modelo (E1-E5)** — LogReg baseline + RF + XGBoost + ensemble, comparación en API/UI. Petición original explícita del usuario. `evaluar()` ya es reutilizable.
+3. **I10 · Plots de calibración + histograma de probas** — cierra la lectura probabilística junto a I1.
+4. **G3 + I9 · Tests de endpoint `/api/predict`** vía `test_client` — barato, antes de tocar la API en la épica.
+5. **I2 (rank=999), I3 (peso ELO aprendido), M4 (SHAP)** — mejoras de modelado/explicabilidad.
+6. **G1 · Frontend envía `tourney_level`** — completa C1 de punta a punta en la UI.
+7. **M1, M3, M5** — limpieza menor.
+
+Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar este roadmap al cerrar.
+
 ---
 
 ## P0 — Críticos (atacar ya)

@@ -17,7 +17,10 @@ A diferencia de los modelos deportivos simples, este sistema calcula un **ELO h�
 Para evitar la fuga de etiquetas (*label leakage*), se aplica un algoritmo de simetrización aleatoria. Esto crea una perspectiva neutral de juego (Jugador A frente a Jugador B) y garantiza que el dataset de entrenamiento esté perfectamente balanceado (50% de victorias de A), permitiendo que el clasificador aprenda la verdadera frontera de decisión estadística.
 
 ### 3. Modelado Aditivo Secuencial (Gradient Boosting)
-El modelo final utiliza un clasificador **Gradient Boosting** optimizado mediante **GridSearchCV** con validación cruzada. El algoritmo corrige de forma secuencial y aditiva los errores de clasificación residuales de los árboles de decisión anteriores.
+El modelo final utiliza un clasificador **Gradient Boosting** optimizado mediante **GridSearchCV**. La validación cruzada es **temporal con embargo** (`TimeSeriesSplit` purgado): descarta los partidos contiguos en la frontera train/val para evitar la fuga blanda por estado ELO compartido. El scoring se optimiza con **log-loss** (no accuracy), porque el producto es la *probabilidad* de victoria, no el acierto binario.
+
+### 4. Features (6) y sin train/serve skew
+`diff_elo`, `diff_rank`, `diff_age`, `diff_h2h`, `diff_form`, `tourney_level_num`. El vector se construye desde una **fuente única** (`src/features.py`) tanto en entrenamiento como en inferencia: la API reconstruye H2H y forma reales del historial persistido (no usa valores neutros hardcodeados).
 
 ---
 
@@ -27,7 +30,8 @@ Las visualizaciones generadas por el sistema están diseñadas bajo **principios
 1.  **`plots/evolucion_elo_top.png`**: Serie temporal suavizada (media móvil de 15 partidos) de la evolución del ELO para el Top 5 de jugadores del ranking. Cuenta con etiquetado directo al final de las curvas para evitar la fatiga visual de consultar leyendas.
 2.  **`plots/precision_por_superficie.png`**: Gráfico de barras de la precisión del modelo agrupada por tipo de cancha. Revela, por ejemplo, que en césped (**Grass**) el modelo alcanza una precisión del **67.34%**, debido a dinámicas de juego más predecibles en saques e intercambios rápidos.
 3.  **`plots/matriz_confusion.png`**: Matriz de confusión del test ciego 2026 que detalla tasas de falsos positivos y negativos.
-4.  **`plots/importancia_variables.png`**: Importancia Gini de las características, demostrando el dominio del ELO (~85-90%) frente al ranking oficial ATP.
+4.  **`plots/importancia_variables.png`**: Importancia Gini de las características, demostrando el dominio del ELO frente al ranking oficial ATP.
+5.  **`plots/learning_curve.png`**: Curva de aprendizaje (log-loss train vs validación) bajo CV temporal con embargo. Diagnostica sobreajuste vs falta de señal: el modelo está limitado por datos/señal (la validación sigue descendiendo), no roto por overfit.
 
 ---
 
@@ -36,21 +40,28 @@ Las visualizaciones generadas por el sistema están diseñadas bajo **principios
 ```
 ├── src/
 │   ├── __init__.py
-│   ├── elo.py              # Ecuaciones de ELO y motor de procesamiento histórico
-│   ├── data_processing.py  # Imputación de datos y balanceo simétrico neutral
-│   └── custom_tree.py      # Árbol de decisión implementado desde cero (referencia)
+│   ├── features.py         # Fuente única del vector de features (FEATURES, elo_hibrido, LEVEL_MAP)
+│   ├── elo.py              # Ecuaciones ELO + H2H + forma; motor histórico cronológico
+│   ├── data_processing.py  # Imputación y balanceo simétrico neutral (simetrización)
+│   ├── cv.py               # Validación cruzada temporal con embargo (purged TimeSeriesSplit)
+│   ├── train.py            # GradientBoostingClassifier + GridSearchCV (scoring neg_log_loss)
+│   ├── evaluate.py         # Métricas (accuracy/log-loss/Brier/AUC) + plots + learning curve
+│   └── custom_tree.py      # Árbol de decisión desde cero (referencia, no se usa en el pipeline)
 ├── templates/
 │   └── index.html          # Interfaz web de la SPA de predicción
 ├── static/
-│   ├── style.css           # Estilos premium CSS y dinámicos por superficie
+│   ├── style.css           # Estilos CSS dinámicos por superficie
 │   └── script.js           # Lógica interactiva y buscador predictivo de la web
-├── plots/                  # Visualizaciones analíticas de alto contraste (.png)
+├── tests/                  # Suite pytest (54 tests)
+├── docs/
+│   └── ROADMAP.md          # Backlog priorizado de la revisión técnica (P0/P1/P2 + multi-modelo)
+├── plots/                  # Visualizaciones analíticas (.png)
 ├── archive/                # Historial de scripts de aprendizaje (Fases 1 a 5)
-├── data/                   # Archivos anuales de partidos (de 2020 a 2026)
-├── app.py                  # Servidor local HTTP offline en Python
-├── main.py                 # Script de entrenamiento y evaluación del pipeline
+├── data/                   # Archivos anuales de partidos (2020 a 2026)
+├── app.py                  # API web Flask (/api/players, /api/predict)
+├── main.py                 # Orquestador del pipeline de entrenamiento y evaluación
 ├── visualize.py            # Generador de gráficos EDA y evolución temporal
-├── ideas_futuro.md         # Propuestas para ingeniería de variables avanzada
+├── requirements.txt        # Dependencias con versiones pineadas
 ├── .gitignore              # Archivos y carpetas excluidas del control de versiones
 └── README.md               # Este archivo de documentación
 ```
@@ -102,13 +113,18 @@ python visualize.py
 
 ## 📊 Resultados Científicos
 
-*   **Dataset de Entrenamiento (2020-2025):** 16,134 partidos.
-*   **Mejores Hiperparámetros (CV):** `{'learning_rate': 0.05, 'max_depth': 5, 'n_estimators': 100}`
-*   **Precisión CV en Entrenamiento:** **65.11%**
-*   **Precisión en Test Ciego (Temporada 2026 Parcial):** **56.20%** (n=137 partidos)
-*   **Predictibilidad por Superficie (2026):**
-    *   **Hard (Dura):** 56.20% (n=137 partidos)
-    *   **Clay / Grass (Arcilla y Césped):** N/A (A inicios de 2026 aún no se han disputado partidos en estas superficies en el dataset parcial)
+Métricas sobre el **test ciego 2026** (n≈137). El accuracy por sí solo engaña en un problema probabilístico, así que se reportan log-loss, Brier y AUC:
+
+| Métrica | Valor | Referencia (azar) |
+|---|---|---|
+| AUC | **0.615** | 0.50 |
+| Log-loss | **0.683** | 0.693 |
+| Brier | **0.244** | 0.25 |
+| Accuracy | **56.9%** | 50% |
+
+*   **Mejores Hiperparámetros:** `{'learning_rate': 0.05, 'max_depth': 3, 'n_estimators': 100}`
+*   **CV temporal con embargo (log-loss):** ~0.620
+*   **Lectura honesta:** el modelo **discrimina** (AUC > 0.5) pero de forma débil. El gap CV(0.62)/test(0.68) **persiste tras aplicar embargo**, lo que indica *distribution shift* de la temporada 2026 y no fuga de datos. La learning curve muestra sobreajuste leve y validación aún descendente → el sistema está limitado por señal/datos, con techo en la predecibilidad intrínseca del tenis.
 
 ---
 
