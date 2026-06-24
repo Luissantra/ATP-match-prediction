@@ -1,0 +1,188 @@
+"""
+Módulo de Ratings ELO para Predicción de Tenis (ATP)
+===================================================
+
+Este módulo proporciona las bases matemáticas y el motor de procesamiento para calcular
+los ratings ELO históricos de los jugadores en el circuito profesional ATP.
+
+El sistema ELO es un método estadístico dinámico diseñado originalmente para el ajedrez por Arpad Elo.
+En este proyecto, se adapta al tenis agregando una ponderación híbrida que combina el rendimiento global
+y la especialización del jugador en cada tipo de superficie (Clay, Grass, Hard).
+
+Fundamentos Matemáticos:
+------------------------
+1. Probabilidad Esperada (Expectativa de Victoria):
+   Representa la probabilidad teórica de que el Jugador A derrote al Jugador B, basada en la diferencia
+   de sus ratings previos. Se calcula mediante una función logística:
+
+       E_A = 1 / (1 + 10 ** ((R_B - R_A) / 400))
+
+   Donde R_A es el rating del Jugador A y R_B es el del Jugador B. Si la diferencia es 0, ambos tienen
+   un 50% de probabilidad. Si R_A - R_B = 400, el Jugador A tiene un ~91% de probabilidad de victoria.
+
+2. Ecuación de Actualización:
+   Tras jugarse el partido, los ratings de ambos tenistas se actualizan de acuerdo al resultado real
+   y la expectativa inicial:
+
+       R'_A = R_A + K * (S_A - E_A)
+       R'_B = R_B + K * (S_B - E_B)
+
+   Donde:
+     - S_A es el resultado real para A (1 si gana, 0 si pierde).
+     - E_A es la expectativa calculada previamente.
+     - K es el Factor K (tasa de aprendizaje). Controla la magnitud del ajuste. Un valor típico es 32.
+       Si un favorito gana (S_A = 1, E_A = 0.90), el cambio es mínimo (ajuste de +3.2 pts).
+       Si el "underdog" da la sorpresa (S_A = 1, E_A = 0.10), el ajuste es drástico (ajuste de +28.8 pts).
+"""
+
+import pandas as pd
+import numpy as np
+import os
+
+def calcular_expectativa(rating_A, rating_B):
+    """
+    Calcula la probabilidad esperada (expectativa logística) de que gane el Jugador A.
+
+    Parameters
+    ----------
+    rating_A : float
+        Rating ELO actual del Jugador A.
+    rating_B : float
+        Rating ELO actual del Jugador B.
+
+    Returns
+    -------
+    float
+        Probabilidad esperada entre 0 y 1 de que el Jugador A gane.
+    """
+    expectativa_A = 1 / (1 + 10 ** ((rating_B - rating_A) / 400))
+    return expectativa_A
+
+def actualizar_ratings(rating_A, rating_B, resultado_A, K=32):
+    """
+    Actualiza de forma simétrica los ratings de dos jugadores en base al resultado de un partido.
+
+    Parameters
+    ----------
+    rating_A : float
+        Rating ELO previo del Jugador A.
+    rating_B : float
+        Rating ELO previo del Jugador B.
+    resultado_A : int
+        Resultado real del partido respecto al Jugador A (1 si ganó, 0 si perdió).
+    K : int, opcional
+        Factor de ajuste (tasa de aprendizaje). Por defecto es 32.
+
+    Returns
+    -------
+    tuple of float
+        Nuevos ratings redondeados a un decimal: (nuevo_rating_A, nuevo_rating_B).
+    """
+    # 1. Calcular expectativa de A
+    e_A = calcular_expectativa(rating_A, rating_B)
+    
+    # 2. La expectativa de B es el complemento de A (ya que es un juego de suma cero)
+    e_B = 1 - e_A
+    
+    # 3. Resultado real para B (es el opuesto al de A)
+    resultado_B = 1 - resultado_A
+    
+    # 4. Calcular nuevos ratings aplicando la fórmula de Arpad Elo
+    nuevo_rating_A = rating_A + K * (resultado_A - e_A)
+    nuevo_rating_B = rating_B + K * (resultado_B - e_B)
+    
+    return round(nuevo_rating_A, 1), round(nuevo_rating_B, 1)
+
+def calcular_elos_historicos(data_dir, años):
+    """
+    Procesa un conjunto de datasets anuales de partidos de tenis cronológicamente,
+    manteniendo y actualizando los ratings ELO dinámicos a lo largo del tiempo.
+
+    Para modelar el rendimiento en tenis de manera precisa, el rating final del jugador
+    se compone como un promedio ponderado (50% ELO general y 50% ELO específico de superficie).
+    Esto captura tanto la consistencia absoluta del tenista como su especialización táctica
+    (ej. especialistas de arcilla o campeones en césped).
+
+    Parameters
+    ----------
+    data_dir : str
+        Ruta al directorio que contiene los archivos anuales (ej: '2024.csv').
+    años : list of int
+        Lista de años a procesar en orden cronológico (ej: [2020, 2021, 2022]).
+
+    Returns
+    -------
+    df_completo : pd.DataFrame
+        DataFrame ordenado cronológicamente que contiene todos los partidos procesados
+        con dos nuevas columnas: 'elo_winner' y 'elo_loser' (ratings previos al partido).
+    elo_general : dict
+        Diccionario con el rating ELO general de cada jugador al final del periodo procesado.
+    """
+    # Diccionario para almacenar el ELO actual de cada jugador (inicializado a 1500)
+    elo_general = {}
+    
+    # ELOs específicos de superficie (Clay, Grass, Hard)
+    elo_superficie = {
+        'Clay': {},
+        'Grass': {},
+        'Hard': {}
+    }
+    
+    lista_dfs = []
+    
+    # 1. Cargar y concatenar los años indicados en orden
+    for año in años:
+        filepath = os.path.join(data_dir, f"{año}.csv")
+        if os.path.exists(filepath):
+            df = pd.read_csv(filepath)
+            lista_dfs.append(df)
+            
+    if not lista_dfs:
+        raise FileNotFoundError(f"No se encontraron archivos CSV para los años {años} en el directorio '{data_dir}'.")
+        
+    df_completo = pd.concat(lista_dfs, ignore_index=True)
+    
+    # 2. Ordenar cronológicamente para evitar fuga de información hacia el pasado (data leakage)
+    df_completo = df_completo.sort_values(by=['tourney_date', 'match_num']).reset_index(drop=True)
+    
+    elo_ganador_previo = []
+    elo_perdedor_previo = []
+    
+    print(f"-> Procesando {len(df_completo)} partidos cronológicamente...")
+    for idx, row in df_completo.iterrows():
+        ganador = row['winner_name']
+        perdedor = row['loser_name']
+        superficie = row['surface']
+        
+        # Si la superficie no es reconocida, se asume 'Hard' por ser la más común
+        if superficie not in elo_superficie:
+            superficie = 'Hard'
+            
+        # Obtener ratings previos del ganador (inicializa a 1500 si es debutante)
+        g_general = elo_general.get(ganador, 1500.0)
+        p_general = elo_general.get(perdedor, 1500.0)
+        
+        g_superficie = elo_superficie[superficie].get(ganador, 1500.0)
+        p_superficie = elo_superficie[superficie].get(perdedor, 1500.0)
+        
+        # Ponderación ELO Híbrido (50% General + 50% Superficie)
+        # Esto reduce el sesgo del ranking ATP oficial que a menudo subestima especialistas
+        elo_final_g = 0.5 * g_general + 0.5 * g_superficie
+        elo_final_p = 0.5 * p_general + 0.5 * p_superficie
+        
+        elo_ganador_previo.append(elo_final_g)
+        elo_perdedor_previo.append(elo_final_p)
+        
+        # Actualizar ratings dinámicamente post-partido (el ganador es 1, el perdedor es 0)
+        nuevo_g_gen, nuevo_p_gen = actualizar_ratings(g_general, p_general, resultado_A=1)
+        nuevo_g_sup, nuevo_p_sup = actualizar_ratings(g_superficie, p_superficie, resultado_A=1)
+        
+        elo_general[ganador] = nuevo_g_gen
+        elo_general[perdedor] = nuevo_p_gen
+        elo_superficie[superficie][ganador] = nuevo_g_sup
+        elo_superficie[superficie][perdedor] = nuevo_p_sup
+        
+    df_completo['elo_winner'] = elo_ganador_previo
+    df_completo['elo_loser'] = elo_perdedor_previo
+    
+    return df_completo, elo_general
