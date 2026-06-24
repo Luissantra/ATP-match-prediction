@@ -55,25 +55,32 @@ Las visualizaciones generadas por el sistema están diseñadas bajo **principios
 
 ### 1. Clonar el repositorio y configurar el entorno virtual
 ```bash
-git clone <URL_DEL_REPOSITORIO>
-cd "ATP Prediction"
+git clone https://github.com/Luissantra/ATP-match-prediction.git
+cd "ATP-match-prediction"
 
 # Crear y activar el entorno virtual
 python3 -m venv venv
 source venv/bin/activate  # En Windows usa: venv\Scripts\activate
 
-# Instalar dependencias
+# Instalar dependencias para el modelado y visualizaciones
 pip install pandas numpy scikit-learn seaborn matplotlib
 ```
 
-### 2. Entrenar y evaluar el modelo
-Ejecuta el pipeline principal de extremo a extremo (entrenamiento 2020-2024 y prueba ciega en la temporada 2025):
+### 2. Entrenar el modelo y exportar datos
+Ejecuta el pipeline principal para procesar los datos históricos (2020-2026), ajustar los hiperparámetros del clasificador Gradient Boosting y exportar los modelos serializados (`.pkl`):
 ```bash
 python main.py
 ```
 
-### 3. Generar visualizaciones y series temporales
-Genera el Pair Plot y la evolución temporal del Top 5 de jugadores:
+### 3. Iniciar la aplicación web interactiva
+Inicia el servidor local offline (sin dependencias de red externas) para realizar predicciones a la carta:
+```bash
+python app.py
+```
+Luego abre en tu navegador: **[http://localhost:8000](http://localhost:8000)**.
+
+### 4. Generar visualizaciones estáticas analíticas
+Genera el Pair Plot y la evolución temporal de los ELOs del Top 5 de jugadores:
 ```bash
 python visualize.py
 ```
@@ -82,14 +89,13 @@ python visualize.py
 
 ## 📊 Resultados Científicos
 
-*   **Dataset de Entrenamiento (2020-2024):** 13,273 partidos.
-*   **Mejores Hiperparámetros (CV):** `{'learning_rate': 0.05, 'max_depth': 3, 'n_estimators': 150}`
-*   **Precisión CV en Entrenamiento:** **65.36%**
-*   **Precisión en Test Ciego (Temporada 2025):** **64.52%**
-*   **Predictibilidad por Superficie (2025):**
-    *   **Grass (Césped):** 67.34%
-    *   **Hard (Dura):** 64.38%
-    *   **Clay (Arcilla):** 63.79%
+*   **Dataset de Entrenamiento (2020-2025):** 16,134 partidos.
+*   **Mejores Hiperparámetros (CV):** `{'learning_rate': 0.05, 'max_depth': 5, 'n_estimators': 100}`
+*   **Precisión CV en Entrenamiento:** **65.11%**
+*   **Precisión en Test Ciego (Temporada 2026 Parcial):** **56.20%** (n=137 partidos)
+*   **Predictibilidad por Superficie (2026):**
+    *   **Hard (Dura):** 56.20% (n=137 partidos)
+    *   **Clay / Grass (Arcilla y Césped):** N/A (A inicios de 2026 aún no se han disputado partidos en estas superficies en el dataset parcial)
 
 ---
 
