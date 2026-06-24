@@ -8,11 +8,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import pickle
 from src.elo import calcular_elos_historicos
 from src.data_processing import preparar_datos_entrenamiento
+
+FEATURES = ['diff_elo', 'diff_rank', 'diff_age', 'diff_h2h', 'diff_form', 'tourney_level_num']
 
 def imprimir_seccion(titulo, descripcion):
     """Imprime un banner con formato elegante en la consola para mejorar la lectura didáctica."""
@@ -56,10 +58,10 @@ if __name__ == "__main__":
     df_train = df_features[df_features['year'] < 2026]
     df_test = df_features[df_features['year'] == 2026]
     
-    X_train = df_train[['diff_elo', 'diff_rank', 'diff_age']]
+    X_train = df_train[FEATURES]
     y_train = df_train['label']
-    
-    X_test = df_test[['diff_elo', 'diff_rank', 'diff_age']]
+
+    X_test = df_test[FEATURES]
     y_test = df_test['label']
     
     print(f"  * Tamaño conjunto de Entrenamiento (2020-2025): {len(X_train)} partidos")
@@ -86,7 +88,7 @@ if __name__ == "__main__":
     grid_search = GridSearchCV(
         estimator=gb_base, 
         param_grid=param_grid, 
-        cv=3, 
+        cv=TimeSeriesSplit(n_splits=5),
         scoring='accuracy', 
         n_jobs=-1,
         verbose=1
@@ -161,7 +163,8 @@ if __name__ == "__main__":
     # VISUALIZACIÓN CIENTÍFICA 2: Importancia de Variables (Feature Importance)
     # =========================================================================
     importancias = mejor_modelo.feature_importances_
-    features_list = ['Diferencia ELO', 'Diferencia Ranking', 'Diferencia Edad']
+    features_list = ['Diferencia ELO', 'Diferencia Ranking', 'Diferencia Edad',
+                     'H2H Histórico', 'Forma Reciente', 'Nivel de Torneo']
     
     # Ordenar por importancia
     indices_ordenados = np.argsort(importancias)
