@@ -1,5 +1,6 @@
 import os
 import pickle
+import sklearn
 import pandas as pd
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
@@ -19,6 +20,19 @@ h2h = {}
 form_final = {}
 
 
+def verificar_version_sklearn(saved_version):
+    """
+    Compara la versión de sklearn con la que serializó el modelo. Cargar un pkl con
+    otra versión puede romper silenciosamente. Devuelve un aviso (str) o None.
+    """
+    if saved_version is None:
+        return None  # pkl antiguo sin la clave: no podemos comprobar
+    if saved_version != sklearn.__version__:
+        return (f"Aviso: el modelo se entrenó con scikit-learn {saved_version} "
+                f"pero está cargado con {sklearn.__version__}. Reentrena con 'python main.py'.")
+    return None
+
+
 def cargar_modelo():
     global modelo, elo_general, elo_superficie, stats_jugadores, h2h, form_final
     try:
@@ -31,6 +45,9 @@ def cargar_modelo():
         stats_jugadores = metadata['stats']
         h2h = metadata.get('h2h', {})
         form_final = metadata.get('form', {})
+        aviso = verificar_version_sklearn(metadata.get('sklearn_version'))
+        if aviso:
+            print(aviso)
         print("Modelo y estadísticas cargados.")
         return True
     except Exception as e:

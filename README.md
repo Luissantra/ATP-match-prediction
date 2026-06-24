@@ -68,8 +68,8 @@ cd "ATP-match-prediction"
 python3 -m venv venv
 source venv/bin/activate  # En Windows usa: venv\Scripts\activate
 
-# Instalar dependencias para el modelado y visualizaciones
-pip install pandas numpy scikit-learn seaborn matplotlib
+# Instalar dependencias (versiones pineadas)
+pip install -r requirements.txt
 ```
 
 ### 2. Entrenar el modelo y exportar datos
@@ -79,11 +79,18 @@ python main.py
 ```
 
 ### 3. Iniciar la aplicación web interactiva
-Inicia el servidor local offline (sin dependencias de red externas) para realizar predicciones a la carta:
+Inicia el servidor de **desarrollo** Flask para realizar predicciones a la carta:
 ```bash
 python app.py
 ```
 Luego abre en tu navegador: **[http://localhost:8000](http://localhost:8000)**.
+
+> ⚠️ `python app.py` usa el servidor de desarrollo de Werkzeug (un solo hilo), **no apto para producción**.
+> Para un despliegue mínimo usa un servidor WSGI con varios workers:
+> ```bash
+> gunicorn -w 4 -b 0.0.0.0:8000 app:app
+> ```
+> Cada worker carga los `.pkl` al arrancar (estado global de solo lectura → sin problemas de concurrencia).
 
 ### 4. Generar visualizaciones estáticas analíticas
 Genera el Pair Plot y la evolución temporal de los ELOs del Top 5 de jugadores:

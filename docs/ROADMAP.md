@@ -20,16 +20,15 @@
   `src/cv.py::purged_time_series_splits` añade embargo temporal (7 días) a `TimeSeriesSplit`; `train.py` lo usa en GridSearch y `evaluate.graficar_learning_curve` dibuja la curva.
   **Hallazgo:** con embargo, CV log-loss 0.620 vs test ciego 0.683. El gap **persiste** → NO era fuga blanda sino **distribution shift de 2026**. La learning curve muestra sobreajuste leve (gap train/val ~0.05, estrechándose) y validación aún descendente → el modelo está **limitado por señal/datos**, no roto por overfit. Más datos ayudarían; el techo es la predecibilidad intrínseca del tenis (~AUC 0.62-0.65).
 
-- [ ] **C4 · `app.run(debug=False)` = servidor de desarrollo Werkzeug.**
-  No apto para producción (single-thread).
-  *Fix:* `gunicorn -w 4 app:app`. Estado global read-only → sin problema de concurrencia (solo RAM ×4).
+- [x] **C4 · `app.run(debug=False)` = servidor de desarrollo Werkzeug.** ✅ Resuelto (Fase 4).
+  `gunicorn==23.0.0` en requirements; README documenta `gunicorn -w 4 -b 0.0.0.0:8000 app:app` con aviso de que `python app.py` es solo desarrollo. Verificado: gunicorn (2 workers) sirve `/api/players` y `/api/predict`.
 
 ---
 
 ## Gaps detectados durante Fase 1 (valorados)
 
 - [ ] **G1 · Frontend no envía `tourney_level`** → la UI siempre usa el default (1). La API ya lo acepta. *Decisión: diferir* — es trabajo de UI (dropdown en `index.html` + `script.js`) y requiere verificación en navegador; no bloquea la calidad del modelo. Cerrar tras las fases P0.
-- [ ] **G2 · `cargar_modelo` no valida `sklearn_version`** del pkl contra la versión instalada. *Decisión: diferir* — riesgo bajo (versión pineada en requirements); se agrupa con I4 en el hardening de producción (C4).
+- [x] **G2 · `cargar_modelo` no valida `sklearn_version`** ✅ Resuelto (Fase 4). `app.verificar_version_sklearn()` avisa si la versión del pkl difiere de la instalada (3 tests). Cubre la mitad pendiente de **I4**.
 - [ ] **G3 · Falta test de endpoint `/api/predict` vía `test_client`** (superficie inválida, faltan params, jugador desconocido marcado). *Decisión: near-term* — barato; cerrar junto a I9 antes de la épica multi-modelo.
 
 ---
@@ -42,7 +41,7 @@
 - [ ] **I3 · ELO híbrido 50/50 arbitrario.** Pasar `elo_general` y `elo_superficie` como 2 features y dejar que el GBM aprenda el peso; o validar el 0.5 por grid.
 
 ### Producción
-- [~] **I4 · Pickle inseguro + riesgo de versión sklearn.** Parcial: `sklearn_version` ya se guarda en el pkl (Fase 1). Falta **validar** al cargar (warn si difiere) y evaluar `skops`. Pin ya presente (`scikit-learn==1.9.0`).
+- [~] **I4 · Pickle inseguro + riesgo de versión sklearn.** Versión: ✅ se guarda (Fase 1) y se **valida al cargar** (Fase 4, G2). Pendiente solo lo de seguridad: evaluar `skops` para carga sin ejecución de código arbitrario (riesgo bajo con artefactos propios).
 - [ ] **I5 · Jugador desconocido cae a defaults silenciosos** (1500/999/26). Marcar `"unknown": true` en la respuesta y avisar en UI.
 - [ ] **I6 · CSV con columnas faltantes → `KeyError` crudo** (`src/elo.py:163`). Validar columnas requeridas por archivo con error claro.
 
