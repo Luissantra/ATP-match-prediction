@@ -26,3 +26,10 @@ Thumbs.db
 # (Se generan dinámicamente al ejecutar main.py y visualize.py)
 plots/
 *.png
+
+# Datos y datasets
+data/
+
+# Notas y archivos de seguimiento del asistente (Gemini)
+gemini.md
+ideas_futuro.md
