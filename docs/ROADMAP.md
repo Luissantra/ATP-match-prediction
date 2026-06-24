@@ -6,16 +6,18 @@
 
 ## 🧭 Próximos pasos (orden recomendado)
 
-**Todos los P0 críticos están resueltos** (C1·C2·C3·C4). El siguiente tramo:
+**P0 críticos (C1-C4) + I1 + Épica E1-E3 resueltos** (sesión 2026-06-24).
 
-1. **✅ I1 · Calibración del modelo** — `CalibratedClassifierCV(isotonic)` sobre fold temporal purgado. `calibrar_modelo()` en `src/train.py`. `main.py` compara base vs calibrado en test ciego; exporta el calibrado a `modelo_atp.pkl`. 6 tests en `tests/test_train.py`.
-2. **Épica multi-modelo (E1-E5)** — en curso. — LogReg baseline + RF + XGBoost + ensemble, comparación en API/UI. Petición original explícita del usuario. `evaluar()` ya es reutilizable.
-3. **I10 · Plots de calibración + histograma de probas** — cierra la lectura probabilística junto a I1.
-4. **G3 + I9 · Tests de endpoint `/api/predict`** vía `test_client` — barato, antes de tocar la API en la épica.
-5. **I2 (rank=999), I3 (peso ELO aprendido), M4 (SHAP)** — mejoras de modelado/explicabilidad.
-6. **N1 · Notebook didáctico** — resumen del proyecto (sin la web) para portafolio/aprendizaje.
-7. **N2 · Actualizar visuales de la web** + **G1** (frontend envía `tourney_level`) — completar la UI de punta a punta.
-8. **M1, M3, M5** — limpieza menor.
+1. **✅ I1 · Calibración** — hecho.
+2. **✅ E1+E2 · Multi-modelo entrenamiento + artefactos** — hecho.
+3. **✅ E3 · API multi-modelo** (`/api/models`, `?model=`, `/api/predict_all`) — hecho. 77 tests total.
+4. **⏸ E4 · Frontend multi-modelo** — diferido hasta rediseño UI (N2). Implementar tras aprobación del nuevo diseño.
+5. **⏸ E5 · Ensemble soft-voting** — diferido junto a E4 (se presenta en la comparación de modelos).
+6. **▶️ N2 · Rediseño UI** — en espera de propuesta visual del usuario. Luego G1 (dropdown `tourney_level`).
+7. **I10 · Plots calibración + histograma de probas** — near-term.
+8. **I2 (rank=999), I3 (peso ELO aprendido), M4 (SHAP)** — mejoras de modelado.
+9. **N1 · Notebook didáctico** — portafolio.
+10. **M1, M3, M5** — limpieza menor.
 
 Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar este roadmap al cerrar.
 
