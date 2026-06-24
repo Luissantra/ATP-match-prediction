@@ -16,9 +16,9 @@
 - [x] **C2 · Métrica equivocada: `scoring='accuracy'`.** ✅ Resuelto (Fase 2).
   GridSearch ahora optimiza `neg_log_loss`. `src/evaluate.py` expone `evaluar(modelo, X, y) -> {accuracy, log_loss, brier, auc}` (reutilizable para la épica multi-modelo) y el reporte imprime las 4. Test ciego 2026: AUC 0.615, log-loss 0.683, Brier 0.244, accuracy 56.9% — el modelo discrimina (AUC>0.5) aunque débilmente; el accuracy solo lo subestimaba.
 
-- [ ] **C3 · Gap CV 65% vs test 55% = sobreajuste + CV optimista.**
-  `TimeSeriesSplit` sin purging/embargo: partidos contiguos del mismo torneo comparten estado ELO entre train y val → fuga blanda. GridSearch optimiza sobre ese CV inflado.
-  *Fix:* embargo temporal entre folds + learning curve para diagnosticar. Reportar CV con `neg_log_loss`. Ver Plan §C3.
+- [x] **C3 · Gap CV vs test = ¿sobreajuste o CV optimista?** ✅ Resuelto/diagnosticado (Fase 3).
+  `src/cv.py::purged_time_series_splits` añade embargo temporal (7 días) a `TimeSeriesSplit`; `train.py` lo usa en GridSearch y `evaluate.graficar_learning_curve` dibuja la curva.
+  **Hallazgo:** con embargo, CV log-loss 0.620 vs test ciego 0.683. El gap **persiste** → NO era fuga blanda sino **distribution shift de 2026**. La learning curve muestra sobreajuste leve (gap train/val ~0.05, estrechándose) y validación aún descendente → el modelo está **limitado por señal/datos**, no roto por overfit. Más datos ayudarían; el techo es la predecibilidad intrínseca del tenis (~AUC 0.62-0.65).
 
 - [ ] **C4 · `app.run(debug=False)` = servidor de desarrollo Werkzeug.**
   No apto para producción (single-thread).

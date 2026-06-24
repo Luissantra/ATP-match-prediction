@@ -91,6 +91,7 @@ def preparar_datos_entrenamiento(df_con_elo):
 
     return pd.DataFrame({
         'year':             df['tourney_date'].astype(str).str[:4].astype(int).values,
+        'tourney_date':     df['tourney_date'].values,  # yyyymmdd, para el embargo temporal del CV
         'surface':          df['surface'].values if 'surface' in df.columns else 'Hard',
         'diff_elo':         elo_a - elo_b,
         'diff_rank':        rank_a - rank_b,

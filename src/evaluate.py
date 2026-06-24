@@ -4,6 +4,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.base import clone
+from sklearn.model_selection import learning_curve
 from sklearn.metrics import (
     accuracy_score, classification_report, confusion_matrix,
     log_loss, brier_score_loss, roc_auc_score,
@@ -50,6 +52,35 @@ def evaluar_y_graficar(modelo, X_test, y_test, df_test, features):
     _plot_accuracy_by_surface(df_test, preds, accuracy)
 
     return accuracy
+
+
+def graficar_learning_curve(modelo, X_train, y_train, cv):
+    """
+    Diagnostica el gap CV/test: dibuja log-loss de train vs validación según crece
+    el tamaño de entrenamiento. Si val_loss >> train_loss y no convergen → sobreajuste;
+    si ambas son altas y planas → underfitting / falta de señal.
+    """
+    train_sizes, train_scores, val_scores = learning_curve(
+        clone(modelo), X_train, y_train, cv=cv, scoring='neg_log_loss',
+        train_sizes=np.linspace(0.2, 1.0, 6), n_jobs=-1,
+    )
+    train_loss = -train_scores.mean(axis=1)
+    val_loss = -val_scores.mean(axis=1)
+
+    os.makedirs("plots", exist_ok=True)
+    plt.figure(figsize=(8, 5))
+    plt.plot(train_sizes, train_loss, 'o-', color="#27ae60", label="Train log-loss")
+    plt.plot(train_sizes, val_loss, 'o-', color="#c0392b", label="Validación log-loss")
+    plt.axhline(0.6931, color='#7f8c8d', linestyle='--', alpha=0.7, label='Azar (0.693)')
+    plt.title("Curva de Aprendizaje (CV temporal con embargo)\n¿Sobreajuste o falta de señal?",
+              fontsize=12, pad=15, weight='bold')
+    plt.xlabel("Tamaño de entrenamiento", fontsize=11)
+    plt.ylabel("Log-loss (menor = mejor)", fontsize=11)
+    plt.legend(frameon=True, facecolor='white', edgecolor='none')
+    sns.despine()
+    plt.tight_layout()
+    plt.savefig("plots/learning_curve.png", dpi=300)
+    plt.close()
 
 
 def _plot_confusion_matrix(y_test, preds, accuracy):

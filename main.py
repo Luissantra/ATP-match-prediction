@@ -5,7 +5,8 @@ from src.elo import calcular_elos_historicos
 from src.data_processing import preparar_datos_entrenamiento
 from src.features import FEATURES
 from src.train import entrenar_modelo
-from src.evaluate import evaluar_y_graficar
+from src.evaluate import evaluar_y_graficar, graficar_learning_curve
+from src.cv import purged_time_series_splits
 
 AÑOS = [2020, 2021, 2022, 2023, 2024, 2025, 2026]
 TEST_YEAR = 2026
@@ -34,12 +35,14 @@ if __name__ == "__main__":
     print(f"  Entrenamiento: {len(X_train)} partidos | Test ciego {TEST_YEAR}: {len(X_test)} partidos")
 
     # 3. Entrenar
-    print("\n[3/4] Entrenando con GridSearchCV + TimeSeriesSplit...")
-    modelo = entrenar_modelo(X_train, y_train)
+    print("\n[3/4] Entrenando con GridSearchCV + CV temporal con embargo...")
+    modelo = entrenar_modelo(X_train, y_train, dates=df_train['tourney_date'].values)
 
     # 4. Evaluar y graficar
     print("\n[4/4] Evaluando y generando gráficos...")
     evaluar_y_graficar(modelo, X_test, y_test, df_test, FEATURES)
+    cv_splits = list(purged_time_series_splits(df_train['tourney_date'].values, n_splits=5))
+    graficar_learning_curve(modelo, X_train, y_train, cv_splits)
 
     # 5. Exportar artefactos
     stats_jugadores = {}

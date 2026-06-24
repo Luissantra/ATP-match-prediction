@@ -40,7 +40,7 @@ def test_new_feature_columns_exist():
 def test_total_feature_columns():
     df = _make_df_with_elo()
     result = preparar_datos_entrenamiento(df)
-    expected = {'year', 'surface', 'diff_elo', 'diff_rank', 'diff_age',
+    expected = {'year', 'tourney_date', 'surface', 'diff_elo', 'diff_rank', 'diff_age',
                 'diff_h2h', 'diff_form', 'tourney_level_num', 'label'}
     assert set(result.columns) == expected
 
