@@ -33,6 +33,15 @@ al 50% (evitando sesgos sistemáticos) y el modelo aprende la verdadera frontera
 import pandas as pd
 import numpy as np
 
+LEVEL_MAP = {
+    'G': 5,
+    'M': 4,
+    'F': 3,
+    'O': 3,
+    '500': 2, 'A': 2,
+    '250': 1, 'D': 1,
+}
+
 def preparar_datos_entrenamiento(df_con_elo):
     """
     Realiza la imputación estadística y la simetrización de características
@@ -81,27 +90,39 @@ def preparar_datos_entrenamiento(df_con_elo):
         w_elo, l_elo = row['elo_winner'], row['elo_loser']
         w_rank, l_rank = row['winner_rank'], row['loser_rank']
         w_age, l_age = row['winner_age'], row['loser_age']
-        
+        h2h_w = row.get('h2h_winner_ratio', 0.5)
+        h2h_l = row.get('h2h_loser_ratio', 0.5)
+        form_w = row.get('form_winner', 0.5)
+        form_l = row.get('form_loser', 0.5)
+        tourney_level_num = LEVEL_MAP.get(str(row.get('tourney_level', '250')), 1)
+
         # Simetrizar la perspectiva del partido
         if shuffle_mask[i]:
             # El Jugador A es el ganador real
             diff_elo = w_elo - l_elo
             diff_rank = w_rank - l_rank
             diff_age = w_age - l_age
+            diff_h2h = h2h_w - h2h_l
+            diff_form = form_w - form_l
             label = 1
         else:
             # El Jugador A es el perdedor real
             diff_elo = l_elo - w_elo
             diff_rank = l_rank - w_rank
             diff_age = l_age - w_age
+            diff_h2h = h2h_l - h2h_w
+            diff_form = form_l - form_w
             label = 0
-            
+
         features.append({
             'year': int(str(row['tourney_date'])[:4]),
             'surface': row.get('surface', 'Hard'),
             'diff_elo': diff_elo,
             'diff_rank': diff_rank,
             'diff_age': diff_age,
+            'diff_h2h': diff_h2h,
+            'diff_form': diff_form,
+            'tourney_level_num': tourney_level_num,
             'label': label
         })
         
