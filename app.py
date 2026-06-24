@@ -13,6 +13,8 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 CORS(app)
 
 modelo = None
+todos_modelos = {}    # {nombre: modelo_calibrado} — multi-modelo (E3)
+metrics_todos = {}    # {nombre: {accuracy, log_loss, brier, auc}} — E3
 elo_general = {}
 elo_superficie = {}
 stats_jugadores = {}
@@ -34,7 +36,8 @@ def verificar_version_sklearn(saved_version):
 
 
 def cargar_modelo():
-    global modelo, elo_general, elo_superficie, stats_jugadores, h2h, form_final
+    global modelo, todos_modelos, metrics_todos
+    global elo_general, elo_superficie, stats_jugadores, h2h, form_final
     try:
         with open("modelo_atp.pkl", "rb") as f:
             modelo = pickle.load(f)
@@ -48,6 +51,17 @@ def cargar_modelo():
         aviso = verificar_version_sklearn(metadata.get('sklearn_version'))
         if aviso:
             print(aviso)
+
+        # Multi-modelo: carga opcional (no bloquea si no existe)
+        try:
+            with open("modelos_atp.pkl", "rb") as f:
+                todos_modelos = pickle.load(f)
+            with open("metrics_atp.pkl", "rb") as f:
+                metrics_todos = pickle.load(f)
+            print(f"Multi-modelo cargado: {list(todos_modelos.keys())}")
+        except FileNotFoundError:
+            print("modelos_atp.pkl no encontrado — solo modelo principal disponible.")
+
         print("Modelo y estadísticas cargados.")
         return True
     except Exception as e:
@@ -99,6 +113,61 @@ def construir_features(player_a, player_b, surface, tourney_level=None):
     }
 
 
+def _predecir_con(modelo_usado, player_a, player_b, surface, tourney_level):
+    """
+    Ejecuta la predicción para un modelo dado. Reutilizado por /api/predict y
+    /api/predict_all para evitar duplicar la lógica de features.
+    """
+    gen_a = elo_general.get(player_a, 1500.0)
+    gen_b = elo_general.get(player_b, 1500.0)
+    sup_a = elo_superficie.get(surface, {}).get(player_a, 1500.0)
+    sup_b = elo_superficie.get(surface, {}).get(player_b, 1500.0)
+    elo_hybrid_a = elo_hibrido(gen_a, sup_a)
+    elo_hybrid_b = elo_hibrido(gen_b, sup_b)
+
+    rank_a = stats_jugadores.get(player_a, {}).get('rank', 999.0)
+    rank_b = stats_jugadores.get(player_b, {}).get('rank', 999.0)
+    age_a = stats_jugadores.get(player_a, {}).get('age', 26.0)
+    age_b = stats_jugadores.get(player_b, {}).get('age', 26.0)
+
+    feat = construir_features(player_a, player_b, surface, tourney_level)
+    features = pd.DataFrame([vector_from_features(feat)], columns=FEATURES)
+    probs = modelo_usado.predict_proba(features)[0]
+    prob_a = float(probs[1])
+    prob_b = float(probs[0])
+
+    return {
+        "player_a": {
+            "name": player_a,
+            "elo_general": round(gen_a, 1),
+            "elo_surface": round(sup_a, 1),
+            "elo_hybrid": round(elo_hybrid_a, 1),
+            "rank": int(rank_a) if rank_a != 999 else "Sin Ranking",
+            "age": round(age_a, 1),
+            "prob_victory": round(prob_a * 100, 1),
+        },
+        "player_b": {
+            "name": player_b,
+            "elo_general": round(gen_b, 1),
+            "elo_surface": round(sup_b, 1),
+            "elo_hybrid": round(elo_hybrid_b, 1),
+            "rank": int(rank_b) if rank_b != 999 else "Sin Ranking",
+            "age": round(age_b, 1),
+            "prob_victory": round(prob_b * 100, 1),
+        },
+        "surface": surface,
+        "features_debug": {
+            "diff_elo": round(feat['diff_elo'], 1),
+            "diff_rank": int(feat['diff_rank']),
+            "diff_age": round(feat['diff_age'], 2),
+            "diff_h2h": round(feat['diff_h2h'], 3),
+            "diff_form": round(feat['diff_form'], 3),
+            "tourney_level_num": feat['tourney_level_num'],
+        },
+        "predicted_winner": player_a if prob_a > prob_b else player_b,
+    }
+
+
 with app.app_context():
     cargar_modelo()
 
@@ -130,6 +199,22 @@ def players():
     return jsonify(result)
 
 
+@app.route('/api/models')
+def models():
+    """Lista los modelos disponibles con sus métricas de test ciego 2026."""
+    resultado = []
+    for nombre, metricas in metrics_todos.items():
+        resultado.append({
+            'nombre': nombre,
+            'accuracy': metricas.get('accuracy'),
+            'log_loss': metricas.get('log_loss'),
+            'brier':    metricas.get('brier'),
+            'auc':      metricas.get('auc'),
+        })
+    resultado.sort(key=lambda x: (x['log_loss'] is None, x['log_loss']))
+    return jsonify(resultado)
+
+
 @app.route('/api/predict')
 def predict():
     if modelo is None:
@@ -139,73 +224,75 @@ def predict():
     player_a = request.args.get('player_a')
     player_b = request.args.get('player_b')
     surface = request.args.get('surface', 'Hard')
+    model_name = request.args.get('model', 'gbm')
+    tourney_level = request.args.get('tourney_level')
 
     if not player_a or not player_b:
         return jsonify({"detail": "Faltan parámetros 'player_a' o 'player_b'."}), 400
-
     if surface not in ('Hard', 'Clay', 'Grass'):
         return jsonify({"detail": "La superficie debe ser Hard, Clay o Grass."}), 400
-
     if player_a == player_b:
         return jsonify({"detail": "Los jugadores deben ser distintos."}), 400
 
-    tourney_level = request.args.get('tourney_level')  # ej. 'G','M','500','250'; None → default
-
-    gen_a = elo_general.get(player_a, 1500.0)
-    gen_b = elo_general.get(player_b, 1500.0)
-    sup_a = elo_superficie.get(surface, {}).get(player_a, 1500.0)
-    sup_b = elo_superficie.get(surface, {}).get(player_b, 1500.0)
-    elo_hybrid_a = elo_hibrido(gen_a, sup_a)
-    elo_hybrid_b = elo_hibrido(gen_b, sup_b)
-
-    rank_a = stats_jugadores.get(player_a, {}).get('rank', 999.0)
-    rank_b = stats_jugadores.get(player_b, {}).get('rank', 999.0)
-    age_a = stats_jugadores.get(player_a, {}).get('age', 26.0)
-    age_b = stats_jugadores.get(player_b, {}).get('age', 26.0)
-
-    # Vector de inferencia con la misma semántica que el entrenamiento (sin train/serve skew)
-    feat = construir_features(player_a, player_b, surface, tourney_level)
-    diff_elo = feat['diff_elo']
-    diff_rank = feat['diff_rank']
-    diff_age = feat['diff_age']
+    # Selección de modelo: prioriza todos_modelos, fallback a modelo principal
+    if todos_modelos:
+        if model_name not in todos_modelos:
+            return jsonify({
+                "detail": f"Modelo '{model_name}' no disponible. Opciones: {list(todos_modelos.keys())}"
+            }), 400
+        modelo_usado = todos_modelos[model_name]
+    else:
+        modelo_usado = modelo
 
     try:
-        features = pd.DataFrame([vector_from_features(feat)], columns=FEATURES)
-        probs = modelo.predict_proba(features)[0]
-        prob_a = float(probs[1])
-        prob_b = float(probs[0])
+        resultado = _predecir_con(modelo_usado, player_a, player_b, surface, tourney_level)
+        resultado['model_used'] = model_name
+        return jsonify(resultado)
     except Exception as e:
         return jsonify({"detail": f"Error al predecir: {e}"}), 500
 
+
+@app.route('/api/predict_all')
+def predict_all():
+    """Devuelve las probabilidades de todos los modelos para el mismo partido."""
+    if modelo is None:
+        if not cargar_modelo():
+            return jsonify({"detail": "Modelo no encontrado. Ejecuta python main.py primero."}), 500
+
+    player_a = request.args.get('player_a')
+    player_b = request.args.get('player_b')
+    surface = request.args.get('surface', 'Hard')
+    tourney_level = request.args.get('tourney_level')
+
+    if not player_a or not player_b:
+        return jsonify({"detail": "Faltan parámetros 'player_a' o 'player_b'."}), 400
+    if surface not in ('Hard', 'Clay', 'Grass'):
+        return jsonify({"detail": "La superficie debe ser Hard, Clay o Grass."}), 400
+    if player_a == player_b:
+        return jsonify({"detail": "Los jugadores deben ser distintos."}), 400
+
+    modelos_a_usar = todos_modelos if todos_modelos else {'gbm': modelo}
+    predictions = {}
+    for nombre, m in modelos_a_usar.items():
+        try:
+            feat = construir_features(player_a, player_b, surface, tourney_level)
+            features = pd.DataFrame([vector_from_features(feat)], columns=FEATURES)
+            probs = m.predict_proba(features)[0]
+            prob_a = round(float(probs[1]) * 100, 1)
+            prob_b = round(float(probs[0]) * 100, 1)
+            predictions[nombre] = {
+                'prob_a': prob_a,
+                'prob_b': prob_b,
+                'predicted_winner': player_a if prob_a > prob_b else player_b,
+            }
+        except Exception as e:
+            predictions[nombre] = {'error': str(e)}
+
     return jsonify({
-        "player_a": {
-            "name": player_a,
-            "elo_general": round(gen_a, 1),
-            "elo_surface": round(sup_a, 1),
-            "elo_hybrid": round(elo_hybrid_a, 1),
-            "rank": int(rank_a) if rank_a != 999 else "Sin Ranking",
-            "age": round(age_a, 1),
-            "prob_victory": round(prob_a * 100, 1),
-        },
-        "player_b": {
-            "name": player_b,
-            "elo_general": round(gen_b, 1),
-            "elo_surface": round(sup_b, 1),
-            "elo_hybrid": round(elo_hybrid_b, 1),
-            "rank": int(rank_b) if rank_b != 999 else "Sin Ranking",
-            "age": round(age_b, 1),
-            "prob_victory": round(prob_b * 100, 1),
-        },
-        "surface": surface,
-        "features_debug": {
-            "diff_elo": round(diff_elo, 1),
-            "diff_rank": int(diff_rank),
-            "diff_age": round(diff_age, 2),
-            "diff_h2h": round(feat['diff_h2h'], 3),
-            "diff_form": round(feat['diff_form'], 3),
-            "tourney_level_num": feat['tourney_level_num'],
-        },
-        "predicted_winner": player_a if prob_a > prob_b else player_b,
+        'player_a': player_a,
+        'player_b': player_b,
+        'surface': surface,
+        'predictions': predictions,
     })
 
 

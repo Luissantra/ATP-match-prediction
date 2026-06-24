@@ -87,7 +87,7 @@ Registry de modelos + endpoints de comparación. Detalle en sección dedicada de
 
 - [x] **E1 ·** ✅ `entrenar_todos_los_modelos(X, y, dates)` en `src/train.py`: LogReg, RF, GBM, XGBoost — cada uno con GridSearchCV(neg_log_loss) + CV temporal purgado + `calibrar_modelo`. 4 tests. `xgboost==3.2.0` en requirements.txt.
 - [x] **E2 ·** ✅ `main.py` exporta `modelos_atp.pkl` (`{nombre: modelo_calibrado}`) + `metrics_atp.pkl` (`{nombre: {accuracy, log_loss, brier, auc}}`). `modelo_atp.pkl` (GBM calibrado) se mantiene para compatibilidad con `app.py`.
-- [ ] **E3 ·** API: `GET /api/models` (lista + métricas), `?model=` en `/api/predict`, `GET /api/predict_all` (probas de los N para el mismo partido).
+- [x] **E3 ·** ✅ API multi-modelo: `GET /api/models` (lista ordenada por log-loss), `?model=` en `/api/predict` (valida nombre, 400 si inválido), `GET /api/predict_all` (probas de los 4 modelos para el mismo partido). Helper `_predecir_con()` evita duplicar lógica de features. 13 tests nuevos en `tests/test_api_endpoints.py`. 77 tests total.
 - [ ] **E4 ·** Frontend: dropdown de modelo, modo "comparar" (barras lado a lado → desacuerdo = incertidumbre), tabla de métricas test 2026.
 - [ ] **E5 ·** Ensemble soft-voting como modelo extra.
 
