@@ -192,6 +192,65 @@ if __name__ == "__main__":
     plt.close()
     print(f"📊 Gráfico de importancia de variables guardado como '{path_imp}'")
     
+    # =========================================================================
+    # VISUALIZACIÓN CIENTÍFICA 3: Precisión por Tipo de Superficie
+    # =========================================================================
+    df_test_preds = df_test.copy()
+    df_test_preds['pred'] = preds_2025
+    
+    # Agrupar por superficie y calcular precisión y tamaño de muestra
+    superficies = df_test_preds['surface'].unique()
+    res_superficie = {}
+    for sup in ['Hard', 'Clay', 'Grass']:
+        df_sup = df_test_preds[df_test_preds['surface'] == sup]
+        if len(df_sup) > 0:
+            acc = accuracy_score(df_sup['label'], df_sup['pred'])
+            res_superficie[sup] = (acc, len(df_sup))
+            
+    # Graficar precisión por superficie con mapeo de colores cognitivo
+    plt.figure(figsize=(7, 5))
+    colores_cancha = {
+        'Clay': '#e67e22',  # Color arcilla/ladrillo
+        'Grass': '#2ecc71', # Color césped/verde
+        'Hard': '#3498db'   # Color cemento/azul
+    }
+    
+    names = list(res_superficie.keys())
+    values = [res_superficie[k][0] for k in names]
+    counts = [res_superficie[k][1] for k in names]
+    colores_plot = [colores_cancha.get(n, '#7f8c8d') for n in names]
+    
+    bars = plt.bar(names, values, color=colores_plot, edgecolor='none', width=0.55)
+    
+    # Dibujar una línea punteada indicando la precisión promedio global
+    plt.axhline(precision_2025, color='#7f8c8d', linestyle='--', alpha=0.7, label=f'Precisión Promedio Global ({precision_2025:.1%})')
+    
+    # Configurar el gráfico
+    plt.title("Precisión del Modelo por Tipo de Superficie (Test Ciego 2025)\n¿En qué canchas el tenis es más predecible?", fontsize=12, pad=15, weight='bold')
+    plt.ylabel("Precisión (Accuracy)", fontsize=11)
+    plt.ylim(0, 0.8)
+    plt.legend(loc='lower center', frameon=True, facecolor='white', edgecolor='none')
+    
+    # Agregar anotaciones con porcentajes y tamaños de muestra
+    for bar, val, count in zip(bars, values, counts):
+        plt.text(
+            bar.get_x() + bar.get_width()/2.0, 
+            val + 0.02, 
+            f"{val:.1%}\n(n={count})", 
+            ha='center', va='bottom', 
+            fontweight='bold', 
+            fontsize=10,
+            color='#2c3e50'
+        )
+        
+    sns.despine()
+    plt.tight_layout()
+    
+    path_sup = os.path.join("plots", "precision_por_superficie.png")
+    plt.savefig(path_sup, dpi=300)
+    plt.close()
+    print(f"📊 Gráfico de precisión por superficie guardado como '{path_sup}'")
+    
     imprimir_seccion(
         "Análisis de Variables e Impacto Cognitivo",
         "Observaciones sobre la Importancia de Variables:\n"
@@ -201,5 +260,12 @@ if __name__ == "__main__":
         "  2. La Diferencia de Edad tiene un peso menor pero detecta sutiles ventajas en resistencia\n"
         "     física o madurez mental (experiencia).\n"
         "  3. El Ranking ATP oficial suele ser ruidoso debido a la inactividad, lesiones y la\n"
-        "     acumulación estática de puntos anuales."
+        "     acumulación estática de puntos anuales.\n\n"
+        "Análisis por Superficie de Juego:\n"
+        f"  * Clay (Arcilla): {res_superficie.get('Clay', (0,0))[0]:.2%} de acierto (n={res_superficie.get('Clay', (0,0))[1]} partidos)\n"
+        f"  * Grass (Césped): {res_superficie.get('Grass', (0,0))[0]:.2%} de acierto (n={res_superficie.get('Grass', (0,0))[1]} partidos)\n"
+        f"  * Hard (Dura):    {res_superficie.get('Hard', (0,0))[0]:.2%} de acierto (n={res_superficie.get('Hard', (0,0))[1]} partidos)\n\n"
+        "Nota Científica: El tenis en césped y arcilla suele favorecer perfiles de juego más definidos\n"
+        "(sacadores o pasabolas/desgaste), lo que a veces se traduce en una mayor o menor predictibilidad\n"
+        "respecto a las canchas duras (Hard), las cuales representan el estándar promedio del circuito."
     )

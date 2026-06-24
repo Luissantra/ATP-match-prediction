@@ -98,6 +98,7 @@ def preparar_datos_entrenamiento(df_con_elo):
             
         features.append({
             'year': int(str(row['tourney_date'])[:4]),
+            'surface': row.get('surface', 'Hard'),
             'diff_elo': diff_elo,
             'diff_rank': diff_rank,
             'diff_age': diff_age,
