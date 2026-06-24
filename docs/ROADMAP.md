@@ -13,9 +13,8 @@
   Entreno usa el valor real (`LEVEL_MAP`), pero `app.py` lo fija a `3` (= Finals/Olympics, raro; la mediana del circuito es `1`/250). Cada predicción en vivo simula un partido de nivel Finals → sesgo sistemático. `diff_h2h=0.0`/`diff_form=0.0` son tolerables (0.0 es el neutro simétrico), `3` no.
   *Fix:* pasar `tourney_level` desde el frontend y mapearlo, o (preferido a corto plazo) entrenar un **modelo servible reducido** sin las 3 features que no existen en inferencia. Ver Plan §C1.
 
-- [ ] **C2 · Métrica equivocada: `scoring='accuracy'`.**
-  El producto es la **probabilidad** (`prob_victory`), pero GridSearch optimiza aciertos binarios. 55% accuracy puede ser excelente log-loss; accuracy engaña. `evaluate.py` tampoco reporta log-loss/Brier.
-  *Fix:* `scoring='neg_log_loss'` en GridSearch; añadir log-loss + Brier + AUC al reporte. Ver Plan §C2.
+- [x] **C2 · Métrica equivocada: `scoring='accuracy'`.** ✅ Resuelto (Fase 2).
+  GridSearch ahora optimiza `neg_log_loss`. `src/evaluate.py` expone `evaluar(modelo, X, y) -> {accuracy, log_loss, brier, auc}` (reutilizable para la épica multi-modelo) y el reporte imprime las 4. Test ciego 2026: AUC 0.615, log-loss 0.683, Brier 0.244, accuracy 56.9% — el modelo discrimina (AUC>0.5) aunque débilmente; el accuracy solo lo subestimaba.
 
 - [ ] **C3 · Gap CV 65% vs test 55% = sobreajuste + CV optimista.**
   `TimeSeriesSplit` sin purging/embargo: partidos contiguos del mismo torneo comparten estado ELO entre train y val → fuga blanda. GridSearch optimiza sobre ese CV inflado.

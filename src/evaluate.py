@@ -4,14 +4,44 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.metrics import (
+    accuracy_score, classification_report, confusion_matrix,
+    log_loss, brier_score_loss, roc_auc_score,
+)
+
+
+def evaluar(modelo, X, y):
+    """
+    Métricas de evaluación para un problema probabilístico binario.
+
+    El producto es la *probabilidad* de victoria, así que accuracy por sí sola
+    engaña: se reportan también log-loss, Brier y AUC. Reutilizable para comparar
+    varios modelos con la misma interfaz (épica multi-modelo).
+
+    Returns
+    -------
+    dict con 'accuracy', 'log_loss', 'brier', 'auc'.
+    """
+    preds = modelo.predict(X)
+    proba = modelo.predict_proba(X)[:, 1]
+    return {
+        'accuracy': accuracy_score(y, preds),
+        'log_loss': log_loss(y, proba, labels=[0, 1]),
+        'brier':    brier_score_loss(y, proba),
+        'auc':      roc_auc_score(y, proba),
+    }
 
 
 def evaluar_y_graficar(modelo, X_test, y_test, df_test, features):
     preds = modelo.predict(X_test)
-    accuracy = accuracy_score(y_test, preds)
+    metricas = evaluar(modelo, X_test, y_test)
+    accuracy = metricas['accuracy']
 
-    print(f"\nPRECISIÓN FINAL (ACCURACY): {accuracy:.2%}")
+    print(f"\nMÉTRICAS TEST CIEGO:")
+    print(f"  Accuracy : {metricas['accuracy']:.2%}")
+    print(f"  Log-loss : {metricas['log_loss']:.4f}  (menor es mejor; azar = {0.6931:.4f})")
+    print(f"  Brier    : {metricas['brier']:.4f}  (menor es mejor; azar = 0.25)")
+    print(f"  AUC      : {metricas['auc']:.4f}  (0.5 = azar)")
     print(classification_report(y_test, preds, target_names=['Derrota A', 'Victoria A']))
 
     os.makedirs("plots", exist_ok=True)
