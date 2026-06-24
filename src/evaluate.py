@@ -34,7 +34,8 @@ def evaluar(modelo, X, y):
     }
 
 
-def evaluar_y_graficar(modelo, X_test, y_test, df_test, features):
+def evaluar_y_graficar(modelo, X_test, y_test, df_test, features,
+                       modelo_para_importancia=None):
     preds = modelo.predict(X_test)
     metricas = evaluar(modelo, X_test, y_test)
     accuracy = metricas['accuracy']
@@ -48,7 +49,8 @@ def evaluar_y_graficar(modelo, X_test, y_test, df_test, features):
 
     os.makedirs("plots", exist_ok=True)
     _plot_confusion_matrix(y_test, preds, accuracy)
-    _plot_feature_importance(modelo, features)
+    modelo_imp = modelo_para_importancia if modelo_para_importancia is not None else modelo
+    _plot_feature_importance(modelo_imp, features)
     _plot_accuracy_by_surface(df_test, preds, accuracy)
 
     return accuracy

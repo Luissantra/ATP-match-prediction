@@ -1,3 +1,5 @@
+from sklearn.base import clone
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
 
@@ -35,3 +37,18 @@ def entrenar_modelo(X_train, y_train, param_grid=None, dates=None, embargo_days=
     print(f"Mejor CV log-loss: {-grid_search.best_score_:.4f}")
 
     return grid_search.best_estimator_
+
+
+def calibrar_modelo(modelo_base, X, y, dates=None, embargo_days=7, method="isotonic"):
+    """
+    Envuelve modelo_base en CalibratedClassifierCV usando fold temporal para evitar
+    leakage. Si dates viene, usa purged_time_series_splits (mismo CV que entrenamiento).
+    """
+    if dates is not None:
+        cv = list(purged_time_series_splits(dates, n_splits=5, embargo_days=embargo_days))
+    else:
+        cv = 5
+
+    calibrado = CalibratedClassifierCV(estimator=clone(modelo_base), method=method, cv=cv)
+    calibrado.fit(X, y)
+    return calibrado

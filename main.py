@@ -4,8 +4,8 @@ import pandas as pd
 from src.elo import calcular_elos_historicos
 from src.data_processing import preparar_datos_entrenamiento
 from src.features import FEATURES
-from src.train import entrenar_modelo
-from src.evaluate import evaluar_y_graficar, graficar_learning_curve
+from src.train import entrenar_modelo, calibrar_modelo
+from src.evaluate import evaluar, evaluar_y_graficar, graficar_learning_curve
 from src.cv import purged_time_series_splits
 
 AÑOS = [2020, 2021, 2022, 2023, 2024, 2025, 2026]
@@ -34,15 +34,27 @@ if __name__ == "__main__":
     X_test,  y_test  = df_test[FEATURES],  df_test['label']
     print(f"  Entrenamiento: {len(X_train)} partidos | Test ciego {TEST_YEAR}: {len(X_test)} partidos")
 
-    # 3. Entrenar
+    # 3. Entrenar y calibrar
     print("\n[3/4] Entrenando con GridSearchCV + CV temporal con embargo...")
-    modelo = entrenar_modelo(X_train, y_train, dates=df_train['tourney_date'].values)
+    dates_train = df_train['tourney_date'].values
+    modelo_base = entrenar_modelo(X_train, y_train, dates=dates_train)
 
-    # 4. Evaluar y graficar
+    print("\n      Calibrando (isotonic, fold temporal)...")
+    modelo = calibrar_modelo(modelo_base, X_train.values, y_train.values, dates=dates_train)
+
+    m_base = evaluar(modelo_base, X_test, y_test)
+    m_cal  = evaluar(modelo,      X_test, y_test)
+    print("\n      Comparación base vs calibrado (test ciego):")
+    print(f"        Log-loss : {m_base['log_loss']:.4f} → {m_cal['log_loss']:.4f}")
+    print(f"        Brier    : {m_base['brier']:.4f}  → {m_cal['brier']:.4f}")
+    print(f"        AUC      : {m_base['auc']:.4f}  → {m_cal['auc']:.4f}")
+
+    # 4. Evaluar y graficar (calibrado para métricas; base para importancia de features)
     print("\n[4/4] Evaluando y generando gráficos...")
-    evaluar_y_graficar(modelo, X_test, y_test, df_test, FEATURES)
+    evaluar_y_graficar(modelo, X_test, y_test, df_test, FEATURES,
+                       modelo_para_importancia=modelo_base)
     cv_splits = list(purged_time_series_splits(df_train['tourney_date'].values, n_splits=5))
-    graficar_learning_curve(modelo, X_train, y_train, cv_splits)
+    graficar_learning_curve(modelo_base, X_train, y_train, cv_splits)
 
     # 5. Exportar artefactos
     stats_jugadores = {}
