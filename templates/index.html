@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATP Tennis Prediction Engine 🎾🤖</title>
+    <!-- Fuentes premium de Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Estilos locales -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="surface-hard"> <!-- Clase inicial por defecto (Dura / Azul) -->
+    
+    <div class="glow-bg"></div> <!-- Efecto de luces de fondo -->
+
+    <div class="container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <span class="emoji">🎾</span>
+                <span class="badge">PREDICTIVE ML</span>
+            </div>
+            <h1>ATP Tennis Prediction Engine</h1>
+            <p class="subtitle">Pronósticos basados en ELO Híbrido, Rankings ATP y Datos Demográficos de la Temporada 2026</p>
+        </header>
+
+        <!-- Formulario principal -->
+        <main class="prediction-card glass">
+            
+            <!-- Selector de Superficie (En la parte superior para marcar el estilo visual) -->
+            <div class="surface-selector-wrapper">
+                <label class="section-label">Superficie de Juego</label>
+                <div class="surface-options">
+                    <label class="surface-option-btn hard active">
+                        <input type="radio" name="surface" value="Hard" checked>
+                        <span class="icon">🟦</span>
+                        <span class="text">Cancha Dura (Hard)</span>
+                    </label>
+                    <label class="surface-option-btn clay">
+                        <input type="radio" name="surface" value="Clay">
+                        <span class="icon">🟧</span>
+                        <span class="text">Tierra Batida (Clay)</span>
+                    </label>
+                    <label class="surface-option-btn grass">
+                        <input type="radio" name="surface" value="Grass">
+                        <span class="icon">🟩</span>
+                        <span class="text">Césped (Grass)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="matchup-grid">
+                
+                <!-- Jugador A -->
+                <div class="player-input-column" id="col-player-a">
+                    <div class="column-header">
+                        <span class="role-badge player-a-badge">JUGADOR A</span>
+                    </div>
+                    <div class="input-wrapper">
+                        <input type="text" id="player-a-input" autocomplete="off" placeholder="Escribe para buscar jugador (ej. Alcaraz)...">
+                        <span class="search-icon">🔍</span>
+                        <div class="autocomplete-list" id="player-a-list"></div>
+                    </div>
+                    
+                    <!-- Ficha pre-resultado (Resumen del jugador) -->
+                    <div class="player-quick-card glass" id="quick-card-a">
+                        <div class="avatar">A</div>
+                        <div class="info">
+                            <h3 class="name">-</h3>
+                            <div class="stats-row">
+                                <span>Ranking: <strong class="rank-val">-</strong></span>
+                                <span>Edad: <strong class="age-val">-</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Versus Divider -->
+                <div class="versus-divider">
+                    <div class="vs-circle">VS</div>
+                </div>
+
+                <!-- Jugador B -->
+                <div class="player-input-column" id="col-player-b">
+                    <div class="column-header">
+                        <span class="role-badge player-b-badge">JUGADOR B</span>
+                    </div>
+                    <div class="input-wrapper">
+                        <input type="text" id="player-b-input" autocomplete="off" placeholder="Escribe para buscar jugador (ej. Sinner)...">
+                        <span class="search-icon">🔍</span>
+                        <div class="autocomplete-list" id="player-b-list"></div>
+                    </div>
+                    
+                    <!-- Ficha pre-resultado (Resumen del jugador) -->
+                    <div class="player-quick-card glass" id="quick-card-b">
+                        <div class="avatar">B</div>
+                        <div class="info">
+                            <h3 class="name">-</h3>
+                            <div class="stats-row">
+                                <span>Ranking: <strong class="rank-val">-</strong></span>
+                                <span>Edad: <strong class="age-val">-</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Botón de Predicción -->
+            <div class="action-wrapper">
+                <button id="predict-btn" class="btn-primary" disabled>
+                    <span class="btn-text">Calcular Pronóstico</span>
+                    <span class="spinner"></span>
+                </button>
+            </div>
+
+        </main>
+
+        <!-- Sección de Resultados (Inicialmente oculta) -->
+        <section class="results-section glass hidden" id="results-panel">
+            
+            <div class="results-header">
+                <h2>Análisis Predictivo</h2>
+                <div class="badge-prediction">PREDICCIÓN OFICIAL</div>
+            </div>
+
+            <!-- Barra de porcentajes de victoria -->
+            <div class="probability-container">
+                <div class="probability-labels">
+                    <div class="prob-label-a">
+                        <span class="name" id="prob-name-a">Jugador A</span>
+                        <span class="percentage" id="prob-pct-a">50%</span>
+                    </div>
+                    <div class="prob-label-b">
+                        <span class="percentage" id="prob-pct-b">50%</span>
+                        <span class="name" id="prob-name-b">Jugador B</span>
+                    </div>
+                </div>
+                <div class="probability-bar-wrapper">
+                    <div class="prob-bar-a" style="width: 50%;"></div>
+                    <div class="prob-bar-b" style="width: 50%;"></div>
+                </div>
+            </div>
+
+            <!-- Ganador Destacado -->
+            <div class="winner-announcement">
+                <div class="crown">👑</div>
+                <p class="winner-label">Ganador Predicho:</p>
+                <h3 class="winner-name" id="predicted-winner-display">Carlos Alcaraz</h3>
+                <p class="winner-confidence" id="confidence-display">Probabilidad estimada: 62%</p>
+            </div>
+
+            <!-- Ficha Comparativa Técnica -->
+            <div class="comparison-grid">
+                
+                <!-- Tarjeta Detallada A -->
+                <div class="details-card player-a-details">
+                    <h4 class="details-name" id="detail-name-a">Carlos Alcaraz</h4>
+                    <div class="detail-metric">
+                        <span class="label">ELO Híbrido</span>
+                        <span class="val" id="detail-elo-hybrid-a">2139.1</span>
+                    </div>
+                    <div class="detail-submetrics">
+                        <div class="sub-m">
+                            <span>ELO General</span>
+                            <span id="detail-elo-gen-a">2100.0</span>
+                        </div>
+                        <div class="sub-m">
+                            <span>ELO en Superficie</span>
+                            <span id="detail-elo-sup-a">2178.2</span>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="detail-metric small">
+                        <span class="label">Ranking ATP Oficial</span>
+                        <span class="val" id="detail-rank-a">2</span>
+                    </div>
+                    <div class="detail-metric small">
+                        <span class="label">Edad Actual</span>
+                        <span class="val" id="detail-age-a">22.8 años</span>
+                    </div>
+                </div>
+
+                <!-- Centro de Diferencias Clave -->
+                <div class="match-key-factors">
+                    <h4>Factores Clave</h4>
+                    <ul class="factors-list">
+                        <li>
+                            <span class="factor-name">Diferencia ELO</span>
+                            <span class="factor-value" id="debug-diff-elo">+52.0 pts</span>
+                        </li>
+                        <li>
+                            <span class="factor-name">Diferencia Ranking</span>
+                            <span class="factor-value" id="debug-diff-rank">-2 puestos</span>
+                        </li>
+                        <li>
+                            <span class="factor-name">Diferencia Edad</span>
+                            <span class="factor-value" id="debug-diff-age">-4.2 años</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Tarjeta Detallada B -->
+                <div class="details-card player-b-details">
+                    <h4 class="details-name" id="detail-name-b">Jannik Sinner</h4>
+                    <div class="detail-metric">
+                        <span class="label">ELO Híbrido</span>
+                        <span class="val" id="detail-elo-hybrid-b">2197.0</span>
+                    </div>
+                    <div class="detail-submetrics">
+                        <div class="sub-m">
+                            <span>ELO General</span>
+                            <span id="detail-elo-gen-b">2197.0</span>
+                        </div>
+                        <div class="sub-m">
+                            <span>ELO en Superficie</span>
+                            <span id="detail-elo-sup-b">2197.0</span>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="detail-metric small">
+                        <span class="label">Ranking ATP Oficial</span>
+                        <span class="val" id="detail-rank-b">1</span>
+                    </div>
+                    <div class="detail-metric small">
+                        <span class="label">Edad Actual</span>
+                        <span class="val" id="detail-age-b">24.5 años</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- Footer / Atribuciones -->
+        <footer class="app-footer">
+            <p>Modelado desarrollado con <strong>Gradient Boosting Classifier</strong> y <strong>GridSearchCV</strong> en Python.</p>
+            <p class="credits">Datos del circuito ATP provistos por <a href="https://stats.tennismylife.org/" target="_blank">TML-Database (TennisMyLife)</a> bajo inspiraciones de Jeff Sackmann.</p>
+        </footer>
+
+    </div>
+
+    <!-- Scripts de lógica de la SPA -->
+    <script src="/static/script.js"></script>
+</body>
+</html>

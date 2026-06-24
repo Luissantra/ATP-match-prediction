@@ -10,6 +10,7 @@ import seaborn as sns
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+import pickle
 from src.elo import calcular_elos_historicos
 from src.data_processing import preparar_datos_entrenamiento
 
@@ -30,12 +31,12 @@ if __name__ == "__main__":
     )
 
     # 1. Cargar e integrar datos históricos
-    años = [2020, 2021, 2022, 2023, 2024, 2025]
-    print("Paso 1: Procesando ELO histórico de 2020 a 2025...")
-    df_completo, ratings_finales = calcular_elos_historicos("data", años)
+    años = [2020, 2021, 2022, 2023, 2024, 2025, 2026]
+    print("Paso 1: Procesando ELO histórico de 2020 a 2026...")
+    df_completo, ratings_finales, ratings_superficie = calcular_elos_historicos("data", años)
     
     # Mostrar el Top 10 de jugadores al final del periodo histórico
-    print("\n🔥 TOP 10 JUGADORES SEGÚN RATING ELO GENERAL AL FINAL DE 2025:")
+    print("\n🔥 TOP 10 JUGADORES SEGÚN RATING ELO GENERAL AL FINAL DEL PERIODO:")
     top_jugadores = sorted(ratings_finales.items(), key=lambda x: x[1], reverse=True)[:10]
     for rango, (jugador, rating) in enumerate(top_jugadores, start=1):
         print(f"  {rango:02d}. {jugador:<25} ELO Rating: {rating:.1f}")
@@ -50,10 +51,10 @@ if __name__ == "__main__":
     df_features = preparar_datos_entrenamiento(df_completo)
     print(f"Dataset simétrico generado con éxito. Dimensión total: {df_features.shape[0]} filas, {df_features.shape[1]} columnas.")
     
-    # 3. Dividir en Entrenamiento (2020-2024) y Prueba Final/Ciega (2025)
-    # Esto asegura que evaluamos el modelo en una temporada completa del futuro.
-    df_train = df_features[df_features['year'] < 2025]
-    df_test = df_features[df_features['year'] == 2025]
+    # 3. Dividir en Entrenamiento (2020-2025) y Prueba Final/Ciega (2026)
+    # Esto asegura que evaluamos el modelo en la temporada más reciente.
+    df_train = df_features[df_features['year'] < 2026]
+    df_test = df_features[df_features['year'] == 2026]
     
     X_train = df_train[['diff_elo', 'diff_rank', 'diff_age']]
     y_train = df_train['label']
@@ -61,8 +62,8 @@ if __name__ == "__main__":
     X_test = df_test[['diff_elo', 'diff_rank', 'diff_age']]
     y_test = df_test['label']
     
-    print(f"  * Tamaño conjunto de Entrenamiento (2020-2024): {len(X_train)} partidos")
-    print(f"  * Tamaño conjunto de Validación Ciega (2025):     {len(X_test)} partidos")
+    print(f"  * Tamaño conjunto de Entrenamiento (2020-2025): {len(X_train)} partidos")
+    print(f"  * Tamaño conjunto de Validación Ciega (2026):     {len(X_test)} partidos")
     
     # 4. Configurar Grid Search para Gradient Boosting
     imprimir_seccion(
@@ -269,3 +270,39 @@ if __name__ == "__main__":
         "(sacadores o pasabolas/desgaste), lo que a veces se traduce en una mayor o menor predictibilidad\n"
         "respecto a las canchas duras (Hard), las cuales representan el estándar promedio del circuito."
     )
+
+    # 6. Guardar el modelo y los metadatos para la web interactiva
+    imprimir_seccion(
+        "Exportación de Artefactos para Producción",
+        "Serializando el clasificador Gradient Boosting optimizado y consolidando\n"
+        "las estadísticas más recientes (ELO híbrido, ranking, edad) de todos los jugadores\n"
+        "activos para su despliegue en la aplicación web interactiva."
+    )
+    
+    stats_jugadores = {}
+    for idx, row in df_completo.iterrows():
+        ganador = row['winner_name']
+        perdedor = row['loser_name']
+        
+        # Guardar el último ranking y la edad actual conocida del ganador
+        stats_jugadores[ganador] = {
+            'rank': float(row['winner_rank']) if not pd.isna(row['winner_rank']) else 999.0,
+            'age': float(row['winner_age']) if not pd.isna(row['winner_age']) else 26.0
+        }
+        # Guardar el último ranking y la edad actual conocida del perdedor
+        stats_jugadores[perdedor] = {
+            'rank': float(row['loser_rank']) if not pd.isna(row['loser_rank']) else 999.0,
+            'age': float(row['loser_age']) if not pd.isna(row['loser_age']) else 26.0
+        }
+        
+    metadata_export = {
+        'elo_general': ratings_finales,
+        'elo_superficie': ratings_superficie,
+        'stats': stats_jugadores
+    }
+    
+    with open('modelo_atp.pkl', 'wb') as f:
+        pickle.dump(mejor_modelo, f)
+    with open('stats_jugadores.pkl', 'wb') as f:
+        pickle.dump(metadata_export, f)
+    print("🚀 ¡Modelo y metadatos exportados con éxito a la raíz del proyecto (formato .pkl)! 🚀\n")

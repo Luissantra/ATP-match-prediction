@@ -90,3 +90,14 @@ python visualize.py
     *   **Grass (Césped):** 67.34%
     *   **Hard (Dura):** 64.38%
     *   **Clay (Arcilla):** 63.79%
+
+---
+
+## 📚 Fuentes de Datos y Agradecimientos
+
+Este proyecto se nutre de datos reales y actualizados diariamente del circuito profesional de tenis:
+*   **TML-Database (TennisMyLife):** La base de datos principal de partidos es proporcionada por [TennisMyLife](https://stats.tennismylife.org/), un recurso excelente con datos unificados e identificadores ATP consistentes.
+*   **Jeff Sackmann / tennis_atp:** Inspirador original del esquema de base de datos bajo licencia [Creative Commons Non-Commercial Share Alike](https://github.com/JeffSackmann/tennis_atp).
+
+Agradecemos a la comunidad de analistas deportivos que hacen accesible esta información para investigación académica y desarrollo tecnológico.
+

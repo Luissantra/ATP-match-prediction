@@ -185,4 +185,4 @@ def calcular_elos_historicos(data_dir, años):
     df_completo['elo_winner'] = elo_ganador_previo
     df_completo['elo_loser'] = elo_perdedor_previo
     
-    return df_completo, elo_general
+    return df_completo, elo_general, elo_superficie
