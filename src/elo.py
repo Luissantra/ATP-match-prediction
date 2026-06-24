@@ -40,6 +40,8 @@ import numpy as np
 import os
 from collections import deque
 
+from src.features import elo_hibrido
+
 def calcular_expectativa(rating_A, rating_B):
     """
     Calcula la probabilidad esperada (expectativa logística) de que gane el Jugador A.
@@ -198,10 +200,10 @@ def calcular_elos_historicos(data_dir, años):
         g_superficie = elo_superficie[superficie].get(ganador, 1500.0)
         p_superficie = elo_superficie[superficie].get(perdedor, 1500.0)
         
-        # Ponderación ELO Híbrido (50% General + 50% Superficie)
+        # Ponderación ELO Híbrido (50% General + 50% Superficie) — fuente única en src.features
         # Esto reduce el sesgo del ranking ATP oficial que a menudo subestima especialistas
-        elo_final_g = 0.5 * g_general + 0.5 * g_superficie
-        elo_final_p = 0.5 * p_general + 0.5 * p_superficie
+        elo_final_g = elo_hibrido(g_general, g_superficie)
+        elo_final_p = elo_hibrido(p_general, p_superficie)
         
         elo_ganador_previo.append(elo_final_g)
         elo_perdedor_previo.append(elo_final_p)
@@ -231,4 +233,7 @@ def calcular_elos_historicos(data_dir, años):
     df_completo['form_winner'] = form_winner_list
     df_completo['form_loser'] = form_loser_list
 
-    return df_completo, elo_general, elo_superficie
+    # Estado final de H2H y forma para reconstruir features reales en inferencia (app.py)
+    form_final = {jugador: (sum(dq) / len(dq)) for jugador, dq in form.items() if dq}
+
+    return df_completo, elo_general, elo_superficie, h2h, form_final

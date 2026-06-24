@@ -33,14 +33,7 @@ al 50% (evitando sesgos sistemáticos) y el modelo aprende la verdadera frontera
 import pandas as pd
 import numpy as np
 
-LEVEL_MAP = {
-    'G': 5,
-    'M': 4,
-    'F': 3,
-    'O': 3,
-    '500': 2, 'A': 2,
-    '250': 1, 'D': 1,
-}
+from src.features import LEVEL_MAP  # fuente única; re-exportado para compatibilidad
 
 def preparar_datos_entrenamiento(df_con_elo):
     """

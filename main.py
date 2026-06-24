@@ -1,11 +1,12 @@
 import pickle
+import sklearn
 import pandas as pd
 from src.elo import calcular_elos_historicos
 from src.data_processing import preparar_datos_entrenamiento
+from src.features import FEATURES
 from src.train import entrenar_modelo
 from src.evaluate import evaluar_y_graficar
 
-FEATURES = ['diff_elo', 'diff_rank', 'diff_age', 'diff_h2h', 'diff_form', 'tourney_level_num']
 AÑOS = [2020, 2021, 2022, 2023, 2024, 2025, 2026]
 TEST_YEAR = 2026
 
@@ -14,7 +15,7 @@ if __name__ == "__main__":
 
     # 1. ELO histórico
     print(f"\n[1/4] Calculando ELO histórico ({AÑOS[0]}-{AÑOS[-1]})...")
-    df_completo, ratings_finales, ratings_superficie = calcular_elos_historicos("data", AÑOS)
+    df_completo, ratings_finales, ratings_superficie, h2h, form_final = calcular_elos_historicos("data", AÑOS)
 
     top10 = sorted(ratings_finales.items(), key=lambda x: x[1], reverse=True)[:10]
     print("Top 10 ELO:")
@@ -55,6 +56,7 @@ if __name__ == "__main__":
         pickle.dump(modelo, f)
     with open('stats_jugadores.pkl', 'wb') as f:
         pickle.dump({'elo_general': ratings_finales, 'elo_superficie': ratings_superficie,
-                     'stats': stats_jugadores}, f)
+                     'stats': stats_jugadores, 'h2h': h2h, 'form': form_final,
+                     'sklearn_version': sklearn.__version__}, f)
 
     print("\nModelo y metadatos exportados a modelo_atp.pkl y stats_jugadores.pkl")
