@@ -13,8 +13,9 @@
 3. **I10 · Plots de calibración + histograma de probas** — cierra la lectura probabilística junto a I1.
 4. **G3 + I9 · Tests de endpoint `/api/predict`** vía `test_client` — barato, antes de tocar la API en la épica.
 5. **I2 (rank=999), I3 (peso ELO aprendido), M4 (SHAP)** — mejoras de modelado/explicabilidad.
-6. **G1 · Frontend envía `tourney_level`** — completa C1 de punta a punta en la UI.
-7. **M1, M3, M5** — limpieza menor.
+6. **N1 · Notebook didáctico** — resumen del proyecto (sin la web) para portafolio/aprendizaje.
+7. **N2 · Actualizar visuales de la web** + **G1** (frontend envía `tourney_level`) — completar la UI de punta a punta.
+8. **M1, M3, M5** — limpieza menor.
 
 Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar este roadmap al cerrar.
 
@@ -66,6 +67,8 @@ Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar e
 
 ### Viz
 - [ ] **I10 · Faltan 3 plots clave:** curva de calibración (reliability diagram), learning curve, histograma de probas predichas.
+- [ ] **N1 · Notebook didáctico** (`notebooks/atp_resumen.ipynb`) que resuma los puntos importantes del proyecto **sin tocar la parte web**: matemática del ELO híbrido (logística + actualización), simetrización del dataset (anti-leakage), las 6 features, CV temporal con embargo, y la lectura honesta de métricas (AUC/log-loss/Brier vs accuracy + learning curve). Objetivo portafolio/aprendizaje: narrativa + celdas ejecutables reusando `src/`.
+- [ ] **N2 · Actualizar los visuales de la web** (`templates/index.html`, `static/style.css`, `static/script.js`): refrescar el diseño/estética de la SPA y mostrar las nuevas señales ya disponibles en la API (`diff_h2h`, `diff_form`, `tourney_level_num` en `features_debug`) que hoy el frontend no pinta.
 
 ---
 
