@@ -9,7 +9,7 @@
 **Todos los P0 críticos están resueltos** (C1·C2·C3·C4). El siguiente tramo:
 
 1. **✅ I1 · Calibración del modelo** — `CalibratedClassifierCV(isotonic)` sobre fold temporal purgado. `calibrar_modelo()` en `src/train.py`. `main.py` compara base vs calibrado en test ciego; exporta el calibrado a `modelo_atp.pkl`. 6 tests en `tests/test_train.py`.
-2. **▶️ Épica multi-modelo (E1-E5)** *(siguiente)* — LogReg baseline + RF + XGBoost + ensemble, comparación en API/UI. Petición original explícita del usuario. `evaluar()` ya es reutilizable.
+2. **Épica multi-modelo (E1-E5)** — en curso. — LogReg baseline + RF + XGBoost + ensemble, comparación en API/UI. Petición original explícita del usuario. `evaluar()` ya es reutilizable.
 3. **I10 · Plots de calibración + histograma de probas** — cierra la lectura probabilística junto a I1.
 4. **G3 + I9 · Tests de endpoint `/api/predict`** vía `test_client` — barato, antes de tocar la API en la épica.
 5. **I2 (rank=999), I3 (peso ELO aprendido), M4 (SHAP)** — mejoras de modelado/explicabilidad.
@@ -85,8 +85,8 @@ Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar e
 
 Registry de modelos + endpoints de comparación. Detalle en sección dedicada del Plan.
 
-- [ ] **E1 ·** `src/train.py` entrena N modelos (LogReg baseline, RandomForest, GBM, XGBoost), cada uno calibrado, mismo split.
-- [ ] **E2 ·** Exportar `modelos_atp.pkl` (`{nombre: modelo}`) + `metrics_atp.pkl` (`{nombre: {accuracy, log_loss, brier, auc}}`).
+- [x] **E1 ·** ✅ `entrenar_todos_los_modelos(X, y, dates)` en `src/train.py`: LogReg, RF, GBM, XGBoost — cada uno con GridSearchCV(neg_log_loss) + CV temporal purgado + `calibrar_modelo`. 4 tests. `xgboost==3.2.0` en requirements.txt.
+- [x] **E2 ·** ✅ `main.py` exporta `modelos_atp.pkl` (`{nombre: modelo_calibrado}`) + `metrics_atp.pkl` (`{nombre: {accuracy, log_loss, brier, auc}}`). `modelo_atp.pkl` (GBM calibrado) se mantiene para compatibilidad con `app.py`.
 - [ ] **E3 ·** API: `GET /api/models` (lista + métricas), `?model=` en `/api/predict`, `GET /api/predict_all` (probas de los N para el mismo partido).
 - [ ] **E4 ·** Frontend: dropdown de modelo, modo "comparar" (barras lado a lado → desacuerdo = incertidumbre), tabla de métricas test 2026.
 - [ ] **E5 ·** Ensemble soft-voting como modelo extra.

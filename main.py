@@ -4,7 +4,7 @@ import pandas as pd
 from src.elo import calcular_elos_historicos
 from src.data_processing import preparar_datos_entrenamiento
 from src.features import FEATURES
-from src.train import entrenar_modelo, calibrar_modelo
+from src.train import entrenar_modelo, calibrar_modelo, entrenar_todos_los_modelos
 from src.evaluate import evaluar, evaluar_y_graficar, graficar_learning_curve
 from src.cv import purged_time_series_splits
 
@@ -34,29 +34,36 @@ if __name__ == "__main__":
     X_test,  y_test  = df_test[FEATURES],  df_test['label']
     print(f"  Entrenamiento: {len(X_train)} partidos | Test ciego {TEST_YEAR}: {len(X_test)} partidos")
 
-    # 3. Entrenar y calibrar
-    print("\n[3/4] Entrenando con GridSearchCV + CV temporal con embargo...")
+    # 3. Entrenar todos los modelos (LogReg, RF, GBM, XGBoost) + calibrar
+    print("\n[3/5] Entrenando multi-modelo con GridSearchCV + CV temporal con embargo...")
     dates_train = df_train['tourney_date'].values
-    modelo_base = entrenar_modelo(X_train, y_train, dates=dates_train)
+    X_train_arr = X_train.values
+    y_train_arr = y_train.values
 
-    print("\n      Calibrando (isotonic, fold temporal)...")
-    modelo = calibrar_modelo(modelo_base, X_train.values, y_train.values, dates=dates_train)
+    todos_modelos = entrenar_todos_los_modelos(X_train_arr, y_train_arr, dates=dates_train)
 
-    m_base = evaluar(modelo_base, X_test, y_test)
-    m_cal  = evaluar(modelo,      X_test, y_test)
-    print("\n      Comparación base vs calibrado (test ciego):")
-    print(f"        Log-loss : {m_base['log_loss']:.4f} → {m_cal['log_loss']:.4f}")
-    print(f"        Brier    : {m_base['brier']:.4f}  → {m_cal['brier']:.4f}")
-    print(f"        AUC      : {m_base['auc']:.4f}  → {m_cal['auc']:.4f}")
+    # GBM calibrado = modelo principal (compatibilidad con app.py)
+    modelo = todos_modelos['gbm']
+    # Modelo base sin calibrar para plots de importancia de features
+    modelo_base_gbm = entrenar_modelo(X_train, y_train, dates=dates_train)
 
-    # 4. Evaluar y graficar (calibrado para métricas; base para importancia de features)
-    print("\n[4/4] Evaluando y generando gráficos...")
+    print("\n      Métricas test ciego por modelo:")
+    metrics_all = {}
+    for nombre, m in todos_modelos.items():
+        met = evaluar(m, X_test, y_test)
+        metrics_all[nombre] = met
+        print(f"        {nombre:<14} log-loss={met['log_loss']:.4f}  "
+              f"brier={met['brier']:.4f}  auc={met['auc']:.4f}")
+
+    # 4. Evaluar y graficar (GBM calibrado)
+    print("\n[4/5] Evaluando y generando gráficos...")
     evaluar_y_graficar(modelo, X_test, y_test, df_test, FEATURES,
-                       modelo_para_importancia=modelo_base)
+                       modelo_para_importancia=modelo_base_gbm)
     cv_splits = list(purged_time_series_splits(df_train['tourney_date'].values, n_splits=5))
-    graficar_learning_curve(modelo_base, X_train, y_train, cv_splits)
+    graficar_learning_curve(modelo_base_gbm, X_train, y_train, cv_splits)
 
     # 5. Exportar artefactos
+    print("\n[5/5] Exportando artefactos...")
     stats_jugadores = {}
     for _, row in df_completo.iterrows():
         for role in [('winner_name', 'winner_rank', 'winner_age'),
@@ -67,11 +74,24 @@ if __name__ == "__main__":
                 'age':  float(row[role[2]]) if not pd.isna(row[role[2]]) else 26.0,
             }
 
+    # modelo_atp.pkl: GBM calibrado (compatibilidad app.py existente)
     with open('modelo_atp.pkl', 'wb') as f:
         pickle.dump(modelo, f)
+
+    # modelos_atp.pkl: todos los modelos calibrados para la épica multi-modelo
+    with open('modelos_atp.pkl', 'wb') as f:
+        pickle.dump(todos_modelos, f)
+
+    # metrics_atp.pkl: métricas test ciego para /api/models
+    with open('metrics_atp.pkl', 'wb') as f:
+        pickle.dump(metrics_all, f)
+
     with open('stats_jugadores.pkl', 'wb') as f:
         pickle.dump({'elo_general': ratings_finales, 'elo_superficie': ratings_superficie,
                      'stats': stats_jugadores, 'h2h': h2h, 'form': form_final,
                      'sklearn_version': sklearn.__version__}, f)
 
-    print("\nModelo y metadatos exportados a modelo_atp.pkl y stats_jugadores.pkl")
+    print("  modelo_atp.pkl       — GBM calibrado (API principal)")
+    print("  modelos_atp.pkl      — {logreg, randomforest, gbm, xgboost} calibrados")
+    print("  metrics_atp.pkl      — métricas test ciego por modelo")
+    print("  stats_jugadores.pkl  — ELO/rank/age/H2H/forma")
