@@ -2,7 +2,7 @@
 
 Este proyecto implementa un sistema predictivo de aprendizaje automático optimizado para pronosticar resultados de partidos de tenis profesionales de la ATP. 
 
-Utilizando datos históricos reales del circuito profesional (2020-2025), el modelo predice la probabilidad de victoria cruzando el estado de forma de los tenistas (mediante un sistema de rating ELO híbrido), su ranking ATP oficial y la diferencia de edad.
+Utilizando datos históricos reales del circuito profesional (2020-2026), el modelo predice la probabilidad de victoria cruzando el estado de forma de los tenistas (mediante un sistema de rating ELO híbrido), su ranking ATP oficial y la diferencia de edad.
 
 ---
 
@@ -26,7 +26,7 @@ Las visualizaciones generadas por el sistema están diseñadas bajo **principios
 
 1.  **`plots/evolucion_elo_top.png`**: Serie temporal suavizada (media móvil de 15 partidos) de la evolución del ELO para el Top 5 de jugadores del ranking. Cuenta con etiquetado directo al final de las curvas para evitar la fatiga visual de consultar leyendas.
 2.  **`plots/precision_por_superficie.png`**: Gráfico de barras de la precisión del modelo agrupada por tipo de cancha. Revela, por ejemplo, que en césped (**Grass**) el modelo alcanza una precisión del **67.34%**, debido a dinámicas de juego más predecibles en saques e intercambios rápidos.
-3.  **`plots/matriz_confusion.png`**: Matriz de confusión del test ciego 2025 que detalla tasas de falsos positivos y negativos.
+3.  **`plots/matriz_confusion.png`**: Matriz de confusión del test ciego 2026 que detalla tasas de falsos positivos y negativos.
 4.  **`plots/importancia_variables.png`**: Importancia Gini de las características, demostrando el dominio del ELO (~85-90%) frente al ranking oficial ATP.
 
 ---
@@ -39,9 +39,15 @@ Las visualizaciones generadas por el sistema están diseñadas bajo **principios
 │   ├── elo.py              # Ecuaciones de ELO y motor de procesamiento histórico
 │   ├── data_processing.py  # Imputación de datos y balanceo simétrico neutral
 │   └── custom_tree.py      # Árbol de decisión implementado desde cero (referencia)
+├── templates/
+│   └── index.html          # Interfaz web de la SPA de predicción
+├── static/
+│   ├── style.css           # Estilos premium CSS y dinámicos por superficie
+│   └── script.js           # Lógica interactiva y buscador predictivo de la web
 ├── plots/                  # Visualizaciones analíticas de alto contraste (.png)
 ├── archive/                # Historial de scripts de aprendizaje (Fases 1 a 5)
 ├── data/                   # Archivos anuales de partidos (de 2020 a 2026)
+├── app.py                  # Servidor local HTTP offline en Python
 ├── main.py                 # Script de entrenamiento y evaluación del pipeline
 ├── visualize.py            # Generador de gráficos EDA y evolución temporal
 ├── ideas_futuro.md         # Propuestas para ingeniería de variables avanzada
