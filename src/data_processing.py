@@ -79,54 +79,34 @@ def preparar_datos_entrenamiento(df_con_elo):
     
     # 3. Crear máscara aleatoria de simetrización
     np.random.seed(42)  # Semilla fija para reproducibilidad científica
-    shuffle_mask = np.random.rand(len(df)) > 0.5
-    
-    features = []
-    
-    for i in range(len(df)):
-        row = df.iloc[i]
-        
-        # Recuperar variables clave de ambos jugadores
-        w_elo, l_elo = row['elo_winner'], row['elo_loser']
-        w_rank, l_rank = row['winner_rank'], row['loser_rank']
-        w_age, l_age = row['winner_age'], row['loser_age']
-        h2h_w = row.get('h2h_winner_ratio', 0.5)
-        h2h_l = row.get('h2h_loser_ratio', 0.5)
-        form_w = row.get('form_winner', 0.5)
-        form_l = row.get('form_loser', 0.5)
-        tourney_level_num = LEVEL_MAP.get(str(row.get('tourney_level', '250')), 1)
+    shuffle = np.random.rand(len(df)) > 0.5
 
-        # Simetrizar la perspectiva del partido
-        if shuffle_mask[i]:
-            # El Jugador A es el ganador real
-            diff_elo = w_elo - l_elo
-            diff_rank = w_rank - l_rank
-            diff_age = w_age - l_age
-            diff_h2h = h2h_w - h2h_l
-            diff_form = form_w - form_l
-            label = 1
-        else:
-            # El Jugador A es el perdedor real
-            diff_elo = l_elo - w_elo
-            diff_rank = l_rank - w_rank
-            diff_age = l_age - w_age
-            diff_h2h = h2h_l - h2h_w
-            diff_form = form_l - form_w
-            label = 0
+    # 4. Simetrización vectorizada: A = ganador si shuffle, A = perdedor si no
+    elo_a  = np.where(shuffle, df['elo_winner'],       df['elo_loser'])
+    elo_b  = np.where(shuffle, df['elo_loser'],        df['elo_winner'])
+    rank_a = np.where(shuffle, df['winner_rank'],      df['loser_rank'])
+    rank_b = np.where(shuffle, df['loser_rank'],       df['winner_rank'])
+    age_a  = np.where(shuffle, df['winner_age'],       df['loser_age'])
+    age_b  = np.where(shuffle, df['loser_age'],        df['winner_age'])
+    h2h_a  = np.where(shuffle, df.get('h2h_winner_ratio', 0.5), df.get('h2h_loser_ratio', 0.5))
+    h2h_b  = np.where(shuffle, df.get('h2h_loser_ratio', 0.5),  df.get('h2h_winner_ratio', 0.5))
+    form_a = np.where(shuffle, df.get('form_winner', 0.5),       df.get('form_loser', 0.5))
+    form_b = np.where(shuffle, df.get('form_loser', 0.5),        df.get('form_winner', 0.5))
 
-        features.append({
-            'year': int(str(row['tourney_date'])[:4]),
-            'surface': row.get('surface', 'Hard'),
-            'diff_elo': diff_elo,
-            'diff_rank': diff_rank,
-            'diff_age': diff_age,
-            'diff_h2h': diff_h2h,
-            'diff_form': diff_form,
-            'tourney_level_num': tourney_level_num,
-            'label': label
-        })
-        
-    return pd.DataFrame(features)
+    level_col = df['tourney_level'].astype(str) if 'tourney_level' in df.columns else pd.Series(['250'] * len(df))
+    tourney_level_num = level_col.map(lambda x: LEVEL_MAP.get(x, 1))
+
+    return pd.DataFrame({
+        'year':             df['tourney_date'].astype(str).str[:4].astype(int).values,
+        'surface':          df['surface'].values if 'surface' in df.columns else 'Hard',
+        'diff_elo':         elo_a - elo_b,
+        'diff_rank':        rank_a - rank_b,
+        'diff_age':         age_a - age_b,
+        'diff_h2h':         h2h_a - h2h_b,
+        'diff_form':        form_a - form_b,
+        'tourney_level_num': tourney_level_num.values,
+        'label':            np.where(shuffle, 1, 0),
+    })
 
 def crear_dataset_visual(filepath):
     """
