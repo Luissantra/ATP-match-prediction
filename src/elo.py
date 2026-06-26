@@ -39,7 +39,6 @@ import re
 import pandas as pd
 import numpy as np
 import os
-from collections import deque
 
 from src.features import elo_hibrido
 
@@ -163,9 +162,11 @@ def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True)
     -------
     df_completo : pd.DataFrame
         DataFrame ordenado cronológicamente que contiene todos los partidos procesados
-        con dos nuevas columnas: 'elo_winner' y 'elo_loser' (ratings previos al partido).
+        con las columnas ELO previas al partido (general, superficie e híbrido).
     elo_general : dict
-        Diccionario con el rating ELO general de cada jugador al final del periodo procesado.
+        Rating ELO general de cada jugador al final del periodo procesado.
+    elo_superficie : dict
+        Rating ELO por superficie ({'Clay'|'Grass'|'Hard': {jugador: rating}}).
     """
     # Diccionario para almacenar el ELO actual de cada jugador (inicializado a 1500)
     elo_general = {}
@@ -177,10 +178,6 @@ def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True)
         'Hard': {}
     }
 
-    # H2H: victorias por par de jugadores (clave = tuple ordenada alfabéticamente)
-    h2h = {}
-    # Forma reciente: últimos 10 resultados binarios por jugador
-    form = {}
     n_partidos = {}  # contador de partidos jugados por jugador (para K-schedule)
 
     lista_dfs = []
@@ -211,11 +208,7 @@ def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True)
     elo_perdedor_gen_previo = []
     elo_ganador_sup_previo = []
     elo_perdedor_sup_previo = []
-    h2h_winner_list = []
-    h2h_loser_list = []
-    form_winner_list = []
-    form_loser_list = []
-    
+
     print(f"-> Procesando {len(df_completo)} partidos cronológicamente...")
     for idx, row in df_completo.iterrows():
         ganador = row['winner_name']
@@ -225,29 +218,6 @@ def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True)
         # Si la superficie no es reconocida, se asume 'Hard' por ser la más común
         if superficie not in elo_superficie:
             superficie = 'Hard'
-            
-        # --- H2H pre-partido ---
-        h2h_key = tuple(sorted([ganador, perdedor]))
-        if h2h_key not in h2h:
-            h2h[h2h_key] = {ganador: 0, perdedor: 0}
-        h2h_record = h2h[h2h_key]
-        total_h2h = h2h_record.get(ganador, 0) + h2h_record.get(perdedor, 0)
-        if total_h2h == 0:
-            ratio_h2h_winner = 0.5
-            ratio_h2h_loser = 0.5
-        else:
-            ratio_h2h_winner = h2h_record.get(ganador, 0) / total_h2h
-            ratio_h2h_loser = h2h_record.get(perdedor, 0) / total_h2h
-        h2h_winner_list.append(ratio_h2h_winner)
-        h2h_loser_list.append(ratio_h2h_loser)
-
-        # --- Forma pre-partido ---
-        dq_winner = form.get(ganador)
-        form_w = (sum(dq_winner) / len(dq_winner)) if dq_winner else 0.5
-        dq_loser = form.get(perdedor)
-        form_l = (sum(dq_loser) / len(dq_loser)) if dq_loser else 0.5
-        form_winner_list.append(form_w)
-        form_loser_list.append(form_l)
 
         # Obtener ratings previos del ganador (inicializa a 1500 si es debutante)
         g_general = elo_general.get(ganador, 1500.0)
@@ -290,27 +260,11 @@ def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True)
         n_partidos[ganador] = n_partidos.get(ganador, 0) + 1
         n_partidos[perdedor] = n_partidos.get(perdedor, 0) + 1
 
-        # --- Actualizar H2H y forma post-partido ---
-        h2h[h2h_key][ganador] = h2h[h2h_key].get(ganador, 0) + 1
-        if ganador not in form:
-            form[ganador] = deque(maxlen=10)
-        form[ganador].append(1)
-        if perdedor not in form:
-            form[perdedor] = deque(maxlen=10)
-        form[perdedor].append(0)
-        
     df_completo['elo_winner'] = elo_ganador_previo
     df_completo['elo_loser'] = elo_perdedor_previo
     df_completo['elo_winner_general'] = elo_ganador_gen_previo
     df_completo['elo_loser_general'] = elo_perdedor_gen_previo
     df_completo['elo_winner_sup'] = elo_ganador_sup_previo
     df_completo['elo_loser_sup'] = elo_perdedor_sup_previo
-    df_completo['h2h_winner_ratio'] = h2h_winner_list
-    df_completo['h2h_loser_ratio'] = h2h_loser_list
-    df_completo['form_winner'] = form_winner_list
-    df_completo['form_loser'] = form_loser_list
 
-    # Estado final de H2H y forma para reconstruir features reales en inferencia (app.py)
-    form_final = {jugador: (sum(dq) / len(dq)) for jugador, dq in form.items() if dq}
-
-    return df_completo, elo_general, elo_superficie, h2h, form_final
+    return df_completo, elo_general, elo_superficie

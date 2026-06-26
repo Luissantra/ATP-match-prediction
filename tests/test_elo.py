@@ -22,58 +22,23 @@ def _make_df():
     ])
 
 
-def test_new_columns_exist(tmp_path):
+def test_devuelve_tres_valores(tmp_path):
+    """El motor devuelve (df, elo_general, elo_superficie) — sin H2H/forma (podados)."""
     df = _make_df()
     df.to_csv(tmp_path / "2024.csv", index=False)
-    result, *_ = calcular_elos_historicos(str(tmp_path), [2024])
-    assert 'h2h_winner_ratio' in result.columns
-    assert 'h2h_loser_ratio' in result.columns
-    assert 'form_winner' in result.columns
-    assert 'form_loser' in result.columns
+    resultado = calcular_elos_historicos(str(tmp_path), [2024])
+    assert len(resultado) == 3
+    _, elo_general, elo_superficie = resultado
+    assert isinstance(elo_general, dict)
+    assert set(elo_superficie.keys()) == {'Clay', 'Grass', 'Hard'}
 
 
-def test_h2h_default_when_no_history(tmp_path):
-    """Primer partido entre A y B: H2H debe ser 0.5 para ambos."""
-    df = _make_df()
-    df.to_csv(tmp_path / "2024.csv", index=False)
-    result, *_ = calcular_elos_historicos(str(tmp_path), [2024])
-    assert result.iloc[0]['h2h_winner_ratio'] == 0.5
-    assert result.iloc[0]['h2h_loser_ratio'] == 0.5
-
-
-def test_h2h_updates_after_first_match(tmp_path):
-    """Segundo partido A vs B: A ganó el primero, ratio debe ser 1.0 para A."""
-    df = _make_df()
-    df.to_csv(tmp_path / "2024.csv", index=False)
-    result, *_ = calcular_elos_historicos(str(tmp_path), [2024])
-    assert result.iloc[1]['h2h_winner_ratio'] == 1.0
-    assert result.iloc[1]['h2h_loser_ratio'] == 0.0
-
-
-def test_form_default_when_no_history(tmp_path):
-    """Primer partido de A: forma debe ser 0.5."""
-    df = _make_df()
-    df.to_csv(tmp_path / "2024.csv", index=False)
-    result, *_ = calcular_elos_historicos(str(tmp_path), [2024])
-    assert result.iloc[0]['form_winner'] == 0.5
-    assert result.iloc[0]['form_loser'] == 0.5
-
-
-def test_form_updates_after_matches(tmp_path):
-    """Tercer partido (B vs C): B perdió 2 de 2 previos → form=0.0. C debuta → 0.5."""
-    df = _make_df()
-    df.to_csv(tmp_path / "2024.csv", index=False)
-    result, *_ = calcular_elos_historicos(str(tmp_path), [2024])
-    assert result.iloc[2]['form_winner'] == 0.0
-    assert result.iloc[2]['form_loser'] == 0.5
-
-
-def test_ratios_in_valid_range(tmp_path):
+def test_no_emite_columnas_h2h_form(tmp_path):
     df = _make_df()
     df.to_csv(tmp_path / "2024.csv", index=False)
     result, *_ = calcular_elos_historicos(str(tmp_path), [2024])
     for col in ['h2h_winner_ratio', 'h2h_loser_ratio', 'form_winner', 'form_loser']:
-        assert result[col].between(0.0, 1.0).all(), f"{col} out of range"
+        assert col not in result.columns
 
 
 def test_columnas_elo_separado_existen(tmp_path):
@@ -112,22 +77,6 @@ def test_csv_con_varias_columnas_faltantes_lista_todas(tmp_path):
     with pytest.raises(ValueError, match="winner_name") as exc_info:
         calcular_elos_historicos(str(tmp_path), [2024])
     assert "loser_name" in str(exc_info.value)
-
-
-def test_devuelve_h2h_y_form_finales(tmp_path):
-    """Para inferencia: el motor debe exportar el estado final de H2H y forma."""
-    df = _make_df()
-    df.to_csv(tmp_path / "2024.csv", index=False)
-    _, _, _, h2h, form_final = calcular_elos_historicos(str(tmp_path), [2024])
-
-    # H2H final: A ganó 2 a B, B ganó 1 a C
-    assert h2h[('A', 'B')] == {'A': 2, 'B': 0}
-    assert h2h[('B', 'C')] == {'B': 1, 'C': 0}
-
-    # Forma final (media de últimos resultados): A=[1,1]=1.0, B=[0,0,1]≈0.333, C=[0]=0.0
-    assert form_final['A'] == pytest.approx(1.0)
-    assert form_final['B'] == pytest.approx(1 / 3)
-    assert form_final['C'] == pytest.approx(0.0)
 
 
 def test_mov_sube_elo_mas_en_straight_sets(tmp_path):

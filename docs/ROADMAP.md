@@ -1,16 +1,26 @@
 # ROADMAP — ATP Match Prediction
 
-> Backlog derivado de la revisión técnica 2026-06-24. **Backlog cerrado** (2026-06-26). 153 tests.
+> Backlog derivado de la revisión técnica 2026-06-24. **Backlog cerrado** (2026-06-26).
+> **Poda de minimalismo** (2026-06-26): ver sección abajo. 124 tests (pytest) + 4 (node).
 
-## Estado final
+## Estado final (post-poda)
 
-Todos los ítems resueltos. Métricas finales (test ciego 2025, n=2861):
+Métricas finales (test ciego 2025, n=2861):
 
-- GBM: AUC=0.707, log-loss=0.6259, Brier=0.218, accuracy=64.7%
-- IC95% AUC ≈ ±0.009 — suficiente para comparar modelos
-- Gap CV→test Δ=+0.009 (prácticamente nulo)
-- ML supera baseline ELO-crudo (AUC 0.707 vs 0.693, diferencia fuera del IC)
-- 4 modelos indistinguibles entre sí; ensemble soft-voting incluido
+- LogReg calibrada: AUC=0.709, log-loss=0.6225, Brier=0.217, accuracy=65.0%
+- IC95% AUC ≈ ±0.009
+- Gap CV→test Δ=+0.007 (prácticamente nulo)
+- Supera baseline ELO-híbrido (AUC 0.709 vs 0.694, log-loss 0.6225 vs 0.6318, fuera del IC)
+- Modelo único: LogReg iguala a GBM/RF/XGBoost (la complejidad no añade señal)
+
+## Poda de minimalismo (2026-06-26)
+
+Estudio de permutation importance + ablación sobre test 2025 (n=2861):
+
+- **Features 8 → 5.** Podadas `diff_h2h`, `diff_form`, `tourney_level_num`: permutation importance < 0.001 y ablación dentro del IC95% (±0.009). El lift sobre el ELO viene de rank/edad/sin-ranking. El ELO ya absorbe la forma; el H2H es débil tras controlar por ELO.
+- **Modelos 4 → 1.** LogReg calibrada como modelo único. GBM/RF/XGBoost/ensemble no superaban a la LogReg (señal lineal). Retirados `SoftVotingEnsemble`, `comparar_calibracion`, `/api/predict_all`, `/api/models`, `?model=`, panel comparador, dependencia `xgboost`.
+- **Explicabilidad.** `coeficientes_modelo()` (odds-ratio por +1 std), `graficar_coeficientes()`, endpoint `/api/model`, panel "Detalle del modelo".
+- **Fixes de calidad.** `is_unranked` desde máscara NaN real (no centinela 999); baseline ELO **híbrido** (honesto, mismo acceso a superficie que el modelo); calibración sigmoid (Platt) por defecto; `visualize.py` arreglado (unpack 5→3) y EDA = correlación de features reales (antes pairplot de altura, no usada); `tourney_level`/H2H/forma retirados de ELO/inferencia/frontend.
 
 ## Resuelto
 

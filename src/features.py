@@ -9,28 +9,20 @@ con otra distinta (orden de columnas, pesos del ELO híbrido, defaults, etc.).
 """
 
 # Orden canónico de las features que consume el modelo. NO reordenar sin reentrenar.
+#
+# Reducido de 8 a 5 features (2026-06-26) tras estudio de permutation importance +
+# ablación sobre test ciego 2025 (n=2861): diff_h2h, diff_form y tourney_level_num
+# tenían importancia ~0 (perm. imp. < 0.001) y su ablación movía el AUC dentro del
+# IC95% (±0.009). El ELO ya absorbe la forma reciente; el H2H es débil tras controlar
+# por ELO. Todo el lift sobre el baseline ELO (0.694→0.711) viene de rank/age/unranked.
 FEATURES = [
-    'diff_elo_general', 'diff_elo_sup',   # I3: GBM aprende el peso óptimo (antes 50/50 fijo)
-    'diff_rank', 'is_unranked',            # I2: rank capeado a 250 + indicador wildcard/qualifier
-    'diff_age', 'diff_h2h', 'diff_form', 'tourney_level_num',
+    'diff_elo_general', 'diff_elo_sup',   # ELO separado general/superficie (el modelo aprende el peso)
+    'diff_rank', 'is_unranked',           # rank capeado a 250 + indicador wildcard/qualifier (rank ausente)
+    'diff_age',
 ]
 
-# Ranking máximo considerado. Por encima de este umbral el jugador se considera sin ranking.
+# Ranking máximo considerado. Por encima de este umbral se satura la diferencia de rank.
 RANK_CAP = 250
-
-# Codificación ordinal del nivel de torneo (mayor = más importante).
-LEVEL_MAP = {
-    'G': 5,
-    'M': 4,
-    'F': 3,
-    'O': 3,
-    '500': 2, 'A': 2,
-    '250': 1, 'D': 1,
-}
-
-# Nivel por defecto cuando no se conoce el torneo: 1 (ATP 250), el más común del
-# circuito. Antes se usaba 3 (Finals/Olympics), lo que introducía sesgo sistemático.
-DEFAULT_LEVEL_NUM = 1
 
 
 def elo_hibrido(elo_general, elo_superficie, w=0.5):

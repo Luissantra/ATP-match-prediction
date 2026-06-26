@@ -1,25 +1,21 @@
 import os
 import pickle
 import sklearn
-import pandas as pd
+import numpy as np
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 
-from src.features import (
-    FEATURES, LEVEL_MAP, DEFAULT_LEVEL_NUM, RANK_CAP, elo_hibrido, vector_from_features,
-)
+from src.features import RANK_CAP, elo_hibrido, vector_from_features
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 CORS(app)
 
 modelo = None
-todos_modelos = {}    # {nombre: modelo_calibrado} — multi-modelo (E3)
-metrics_todos = {}    # {nombre: {accuracy, log_loss, brier, auc}} — E3
+metrics = {}          # {accuracy, log_loss, brier, auc} del test ciego 2025
+coeficientes = {}     # {feature: {coef, odds_ratio}} — explicabilidad del modelo lineal
 elo_general = {}
 elo_superficie = {}
 stats_jugadores = {}
-h2h = {}
-form_final = {}
 
 
 def verificar_version_sklearn(saved_version):
@@ -50,8 +46,8 @@ def validar_metadata_pkl(metadata):
 
 
 def cargar_modelo():
-    global modelo, todos_modelos, metrics_todos
-    global elo_general, elo_superficie, stats_jugadores, h2h, form_final
+    global modelo, metrics, coeficientes
+    global elo_general, elo_superficie, stats_jugadores
     try:
         with open("models/stats_jugadores.pkl", "rb") as f:
             metadata = pickle.load(f)
@@ -62,29 +58,27 @@ def cargar_modelo():
         elo_general = metadata['elo_general']
         elo_superficie = metadata['elo_superficie']
         stats_jugadores = metadata['stats']
-        h2h = metadata.get('h2h', {})
-        form_final = metadata.get('form', {})
+        coeficientes = metadata.get('coeficientes', {})
         aviso = verificar_version_sklearn(metadata.get('sklearn_version'))
         if aviso:
             print(aviso)
 
         with open("models/modelos_atp.pkl", "rb") as f:
-            todos_modelos = pickle.load(f)
+            modelo = pickle.load(f)
         with open("models/metrics_atp.pkl", "rb") as f:
-            metrics_todos = pickle.load(f)
-        modelo = todos_modelos['gbm']
-        print(f"Modelos cargados: {list(todos_modelos.keys())}")
+            metrics = pickle.load(f)
+        print("Modelo LogReg cargado.")
         return True
     except Exception as e:
         print(f"Advertencia: no se pudieron cargar los pkl: {e}")
         return False
 
 
-def construir_features(player_a, player_b, surface, tourney_level=None):
+def construir_features(player_a, player_b, surface):
     """
     Construye el dict de features para inferencia con la MISMA semántica que el
-    entrenamiento (sin train/serve skew). H2H y forma se reconstruyen del historial
-    real persistido; el nivel de torneo se mapea del parámetro (default = ATP 250).
+    entrenamiento (sin train/serve skew). 5 features: ELO general/superficie, ranking
+    capeado, indicador sin-ranking y diferencia de edad.
     """
     gen_a = elo_general.get(player_a, 1500.0)
     gen_b = elo_general.get(player_b, 1500.0)
@@ -96,41 +90,21 @@ def construir_features(player_a, player_b, surface, tourney_level=None):
     age_a = stats_jugadores.get(player_a, {}).get('age', 26.0)
     age_b = stats_jugadores.get(player_b, {}).get('age', 26.0)
 
-    # H2H real: ratio de victorias en enfrentamientos previos (0.5/0.5 si no hay historial)
-    record = h2h.get(tuple(sorted([player_a, player_b])))
-    if record:
-        total = record.get(player_a, 0) + record.get(player_b, 0)
-        if total > 0:
-            ratio_a = record.get(player_a, 0) / total
-            ratio_b = record.get(player_b, 0) / total
-        else:
-            ratio_a = ratio_b = 0.5
-    else:
-        ratio_a = ratio_b = 0.5
-
-    # Forma real: media de los últimos resultados (0.5 si jugador desconocido)
-    form_a = form_final.get(player_a, 0.5)
-    form_b = form_final.get(player_b, 0.5)
-
-    level_num = LEVEL_MAP.get(str(tourney_level), DEFAULT_LEVEL_NUM)
+    # is_unranked: jugador sin ranking real conocido (desconocido o sentinela 999).
+    unranked_a = int(player_a not in stats_jugadores or rank_a >= 999)
+    unranked_b = int(player_b not in stats_jugadores or rank_b >= 999)
 
     return {
         'diff_elo_general': gen_a - gen_b,
         'diff_elo_sup':     sup_a - sup_b,
         'diff_rank':        min(rank_a, RANK_CAP) - min(rank_b, RANK_CAP),
-        'is_unranked':      int(rank_a >= 999) - int(rank_b >= 999),
+        'is_unranked':      unranked_a - unranked_b,
         'diff_age':         age_a - age_b,
-        'diff_h2h':         ratio_a - ratio_b,
-        'diff_form':        form_a - form_b,
-        'tourney_level_num': level_num,
     }
 
 
-def _predecir_con(modelo_usado, player_a, player_b, surface, tourney_level):
-    """
-    Ejecuta la predicción para un modelo dado. Reutilizado por /api/predict y
-    /api/predict_all para evitar duplicar la lógica de features.
-    """
+def _predecir_con(modelo_usado, player_a, player_b, surface):
+    """Ejecuta la predicción para un modelo dado y arma la respuesta de la API."""
     gen_a = elo_general.get(player_a, 1500.0)
     gen_b = elo_general.get(player_b, 1500.0)
     sup_a = elo_superficie.get(surface, {}).get(player_a, 1500.0)
@@ -143,8 +117,9 @@ def _predecir_con(modelo_usado, player_a, player_b, surface, tourney_level):
     age_a = stats_jugadores.get(player_a, {}).get('age', 26.0)
     age_b = stats_jugadores.get(player_b, {}).get('age', 26.0)
 
-    feat = construir_features(player_a, player_b, surface, tourney_level)
-    features = pd.DataFrame([vector_from_features(feat)], columns=FEATURES)
+    feat = construir_features(player_a, player_b, surface)
+    # El modelo se entrena sobre numpy; servir numpy evita el warning de feature-names.
+    features = np.array([vector_from_features(feat)])
     probs = modelo_usado.predict_proba(features)[0]
     prob_a = float(probs[1])
     prob_b = float(probs[0])
@@ -180,9 +155,6 @@ def _predecir_con(modelo_usado, player_a, player_b, surface, tourney_level):
             "diff_rank":        int(feat['diff_rank']),
             "is_unranked":      int(feat['is_unranked']),
             "diff_age":         round(feat['diff_age'], 2),
-            "diff_h2h":         round(feat['diff_h2h'], 3),
-            "diff_form":        round(feat['diff_form'], 3),
-            "tourney_level_num": feat['tourney_level_num'],
         },
         "predicted_winner": player_a if prob_a > prob_b else player_b,
     }
@@ -219,20 +191,14 @@ def players():
     return jsonify(result)
 
 
-@app.route('/api/models')
-def models():
-    """Lista los modelos disponibles con sus métricas de test ciego 2026."""
-    resultado = []
-    for nombre, metricas in metrics_todos.items():
-        resultado.append({
-            'nombre': nombre,
-            'accuracy': metricas.get('accuracy'),
-            'log_loss': metricas.get('log_loss'),
-            'brier':    metricas.get('brier'),
-            'auc':      metricas.get('auc'),
-        })
-    resultado.sort(key=lambda x: (x['log_loss'] is None, x['log_loss']))
-    return jsonify(resultado)
+@app.route('/api/model')
+def model_info():
+    """Métricas del modelo (test ciego 2025) y coeficientes para explicabilidad."""
+    return jsonify({
+        'nombre': 'logreg',
+        'metrics': metrics,
+        'coeficientes': coeficientes,
+    })
 
 
 @app.route('/api/predict')
@@ -244,8 +210,6 @@ def predict():
     player_a = request.args.get('player_a')
     player_b = request.args.get('player_b')
     surface = request.args.get('surface', 'Hard')
-    model_name = request.args.get('model', 'gbm')
-    tourney_level = request.args.get('tourney_level')
 
     if not player_a or not player_b:
         return jsonify({"detail": "Faltan parámetros 'player_a' o 'player_b'."}), 400
@@ -254,62 +218,12 @@ def predict():
     if player_a == player_b:
         return jsonify({"detail": "Los jugadores deben ser distintos."}), 400
 
-    # Selección de modelo: prioriza todos_modelos, fallback a modelo principal
-    if todos_modelos:
-        if model_name not in todos_modelos:
-            return jsonify({
-                "detail": f"Modelo '{model_name}' no disponible. Opciones: {list(todos_modelos.keys())}"
-            }), 400
-        modelo_usado = todos_modelos[model_name]
-    else:
-        modelo_usado = modelo
-
     try:
-        resultado = _predecir_con(modelo_usado, player_a, player_b, surface, tourney_level)
-        resultado['model_used'] = model_name
+        resultado = _predecir_con(modelo, player_a, player_b, surface)
+        resultado['model_used'] = 'logreg'
         return jsonify(resultado)
     except Exception as e:
         return jsonify({"detail": f"Error al predecir: {e}"}), 500
-
-
-@app.route('/api/predict_all')
-def predict_all():
-    """Devuelve las probabilidades de todos los modelos para el mismo partido."""
-    if modelo is None:
-        if not cargar_modelo():
-            return jsonify({"detail": "Modelo no encontrado. Ejecuta python main.py primero."}), 500
-
-    player_a = request.args.get('player_a')
-    player_b = request.args.get('player_b')
-    surface = request.args.get('surface', 'Hard')
-    tourney_level = request.args.get('tourney_level')
-
-    if not player_a or not player_b:
-        return jsonify({"detail": "Faltan parámetros 'player_a' o 'player_b'."}), 400
-    if surface not in ('Hard', 'Clay', 'Grass'):
-        return jsonify({"detail": "La superficie debe ser Hard, Clay o Grass."}), 400
-    if player_a == player_b:
-        return jsonify({"detail": "Los jugadores deben ser distintos."}), 400
-
-    modelos_a_usar = todos_modelos if todos_modelos else {'gbm': modelo}
-    predictions = {}
-    for nombre, m in modelos_a_usar.items():
-        try:
-            res = _predecir_con(m, player_a, player_b, surface, tourney_level)
-            predictions[nombre] = {
-                'prob_a': res['player_a']['prob_victory'],
-                'prob_b': res['player_b']['prob_victory'],
-                'predicted_winner': res['predicted_winner'],
-            }
-        except Exception as e:
-            predictions[nombre] = {'error': str(e)}
-
-    return jsonify({
-        'player_a': player_a,
-        'player_b': player_b,
-        'surface': surface,
-        'predictions': predictions,
-    })
 
 
 if __name__ == '__main__':

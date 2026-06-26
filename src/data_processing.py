@@ -33,7 +33,7 @@ al 50% (evitando sesgos sistemáticos) y el modelo aprende la verdadera frontera
 import pandas as pd
 import numpy as np
 
-from src.features import LEVEL_MAP, RANK_CAP  # fuente única; re-exportado para compatibilidad
+from src.features import RANK_CAP  # fuente única; re-exportado para compatibilidad
 
 def preparar_datos_entrenamiento(df_con_elo, seed=42):
     """
@@ -61,10 +61,16 @@ def preparar_datos_entrenamiento(df_con_elo, seed=42):
     # 1. Copiar para evitar Side-Effects
     df = df_con_elo.copy()
     
-    # 2. Imputar nulos de ranking y edad
+    # 2. Marcar jugadores SIN ranking real (wildcard/qualifier) antes de imputar.
+    #    Usamos la máscara NaN original, no el centinela 999: en los datos hay ranks
+    #    reales hasta ~2100 que no deben confundirse con "sin ranking".
+    winner_unranked = df['winner_rank'].isna()
+    loser_unranked = df['loser_rank'].isna()
+
+    # Imputar nulos de ranking y edad
     df['winner_rank'] = df['winner_rank'].fillna(999)
     df['loser_rank'] = df['loser_rank'].fillna(999)
-    
+
     mediana_winner_age = df['winner_age'].median()
     mediana_loser_age = df['loser_age'].median()
     df['winner_age'] = df['winner_age'].fillna(mediana_winner_age)
@@ -76,11 +82,13 @@ def preparar_datos_entrenamiento(df_con_elo, seed=42):
 
     # 4. Simetrización vectorizada: A = ganador si shuffle, A = perdedor si no
 
-    # Ranks crudos — necesarios para is_unranked antes del cap (I2)
+    # Ranks crudos (ya imputados) para el cap; máscara unranked simetrizada aparte
     rank_a_raw = np.where(shuffle, df['winner_rank'], df['loser_rank'])
     rank_b_raw = np.where(shuffle, df['loser_rank'],  df['winner_rank'])
+    unranked_a = np.where(shuffle, winner_unranked, loser_unranked)
+    unranked_b = np.where(shuffle, loser_unranked,  winner_unranked)
 
-    # ELO general y superficie separados (I3: GBM aprende el peso)
+    # ELO general y superficie separados (el modelo aprende el peso)
     elo_gen_a = np.where(shuffle, df['elo_winner_general'], df['elo_loser_general'])
     elo_gen_b = np.where(shuffle, df['elo_loser_general'],  df['elo_winner_general'])
     elo_sup_a = np.where(shuffle, df['elo_winner_sup'],     df['elo_loser_sup'])
@@ -88,13 +96,6 @@ def preparar_datos_entrenamiento(df_con_elo, seed=42):
 
     age_a  = np.where(shuffle, df['winner_age'],       df['loser_age'])
     age_b  = np.where(shuffle, df['loser_age'],        df['winner_age'])
-    h2h_a  = np.where(shuffle, df.get('h2h_winner_ratio', 0.5), df.get('h2h_loser_ratio', 0.5))
-    h2h_b  = np.where(shuffle, df.get('h2h_loser_ratio', 0.5),  df.get('h2h_winner_ratio', 0.5))
-    form_a = np.where(shuffle, df.get('form_winner', 0.5),       df.get('form_loser', 0.5))
-    form_b = np.where(shuffle, df.get('form_loser', 0.5),        df.get('form_winner', 0.5))
-
-    level_col = df['tourney_level'].astype(str) if 'tourney_level' in df.columns else pd.Series(['250'] * len(df))
-    tourney_level_num = level_col.map(lambda x: LEVEL_MAP.get(x, 1))
 
     return pd.DataFrame({
         'year':             df['tourney_date'].astype(str).str[:4].astype(int).values,
@@ -103,44 +104,7 @@ def preparar_datos_entrenamiento(df_con_elo, seed=42):
         'diff_elo_general': elo_gen_a - elo_gen_b,
         'diff_elo_sup':     elo_sup_a - elo_sup_b,
         'diff_rank':        np.minimum(rank_a_raw, RANK_CAP) - np.minimum(rank_b_raw, RANK_CAP),
-        'is_unranked':      (rank_a_raw >= 999).astype(int) - (rank_b_raw >= 999).astype(int),
+        'is_unranked':      unranked_a.astype(int) - unranked_b.astype(int),
         'diff_age':         age_a - age_b,
-        'diff_h2h':         h2h_a - h2h_b,
-        'diff_form':        form_a - form_b,
-        'tourney_level_num': tourney_level_num.values,
         'label':            np.where(shuffle, 1, 0),
-    })
-
-def crear_dataset_visual(filepath, seed=42):
-    """
-    Carga un CSV anual y genera diferencias simétricas (rank, age, ht) para EDA.
-    Simetrización vectorizada: mismo patrón que preparar_datos_entrenamiento.
-    """
-    df = pd.read_csv(filepath)
-
-    df['winner_rank'] = df['winner_rank'].fillna(999)
-    df['loser_rank']  = df['loser_rank'].fillna(999)
-
-    mediana_ht = df['winner_ht'].median() if not df['winner_ht'].isnull().all() else 185.0
-    df['winner_ht'] = df['winner_ht'].fillna(mediana_ht)
-    df['loser_ht']  = df['loser_ht'].fillna(mediana_ht)
-
-    df['winner_age'] = df['winner_age'].fillna(df['winner_age'].median() if not df['winner_age'].isnull().all() else 26.0)
-    df['loser_age']  = df['loser_age'].fillna(df['loser_age'].median() if not df['loser_age'].isnull().all() else 26.0)
-
-    rng = np.random.default_rng(seed)
-    shuffle = rng.random(len(df)) > 0.5
-
-    rank_a = np.where(shuffle, df['winner_rank'].values, df['loser_rank'].values)
-    rank_b = np.where(shuffle, df['loser_rank'].values,  df['winner_rank'].values)
-    age_a  = np.where(shuffle, df['winner_age'].values,  df['loser_age'].values)
-    age_b  = np.where(shuffle, df['loser_age'].values,   df['winner_age'].values)
-    ht_a   = np.where(shuffle, df['winner_ht'].values,   df['loser_ht'].values)
-    ht_b   = np.where(shuffle, df['loser_ht'].values,    df['winner_ht'].values)
-
-    return pd.DataFrame({
-        'diff_rank': rank_a - rank_b,
-        'diff_age':  age_a  - age_b,
-        'diff_ht':   ht_a   - ht_b,
-        'label':     np.where(shuffle, 1, 0),
     })

@@ -7,7 +7,7 @@
 // =========================================================================
 (function () {
 'use strict';
-const { normalizeFactor, formatDiff, formatRank, mergeModels } = window.ATPFormat;
+const { normalizeFactor, formatDiff, formatRank } = window.ATPFormat;
 
 // Factores a graficar como barras divergentes. `dir` = +1 si un valor positivo
 // (A−B) favorece a A; -1 si lo favorece B (ranking: nº menor es mejor; edad:
@@ -17,15 +17,12 @@ const FACTORS = [
     { key: 'diff_elo_sup',     name: 'ELO superficie', unit: 'pts',  dec: 1, dir: 1 },
     { key: 'diff_rank',        name: 'Ranking',        unit: 'pos',  dec: 0, dir: -1 },
     { key: 'diff_age',         name: 'Edad',           unit: 'años', dec: 1, dir: -1 },
-    { key: 'diff_h2h',         name: 'Head-to-head',   unit: '',     dec: 2, dir: 1 },
-    { key: 'diff_form',        name: 'Forma reciente', unit: '',     dec: 2, dir: 1 },
 ];
 
 // ----- Estado -----
 let players = [];
 let selA = null, selB = null;
 let surface = 'Hard';
-let level = '250';
 
 // ----- DOM -----
 const body = document.body;
@@ -45,7 +42,6 @@ function init() {
         surface = v;
         body.className = `surface-${v.toLowerCase()}`;
     });
-    setupPills('level-group', (v) => { level = v; });
     setupSearch(inputA, listA, 'A');
     setupSearch(inputB, listB, 'B');
     btn.addEventListener('click', runPrediction);
@@ -161,13 +157,13 @@ async function runPrediction() {
     if (!selA || !selB) return;
     btn.classList.add('loading');
     btn.disabled = true;
-    const params = `player_a=${encodeURIComponent(selA.name)}&player_b=${encodeURIComponent(selB.name)}&surface=${surface}&tourney_level=${encodeURIComponent(level)}`;
+    const params = `player_a=${encodeURIComponent(selA.name)}&player_b=${encodeURIComponent(selB.name)}&surface=${surface}`;
     try {
         const r = await fetch(`/api/predict?${params}`);
         if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Fallo en la predicción'); }
         const data = await r.json();
         renderResults(data);
-        loadModelComparison(params);
+        loadModelInfo();
     } catch (e) {
         formError.hidden = false;
         formError.textContent = e.message;
@@ -194,7 +190,7 @@ function renderResults(res) {
     const winA = res.predicted_winner === a.name;
     document.getElementById('winner-name').textContent = res.predicted_winner;
     const conf = winA ? a.prob_victory : b.prob_victory;
-    document.getElementById('winner-conf').textContent = `Probabilidad estimada ${conf}% · modelo ${res.model_used || 'gbm'}`;
+    document.getElementById('winner-conf').textContent = `Probabilidad estimada ${conf}% · modelo ${res.model_used || 'logreg'}`;
 
     // Eje + barras de factores
     document.getElementById('axis-name-a').textContent = a.name;
@@ -248,42 +244,61 @@ function markUnknown(card, unknown) {
     card.querySelector('.unknown-flag').hidden = !unknown;
 }
 
-// ----- Comparar modelos -----
-async function loadModelComparison(params) {
+// ----- Detalle del modelo: métricas + coeficientes (explicabilidad) -----
+const COEF_LABELS = {
+    diff_elo_general: 'ELO general',
+    diff_elo_sup: 'ELO superficie',
+    diff_rank: 'Ranking',
+    is_unranked: 'Sin ranking',
+    diff_age: 'Edad',
+};
+
+async function loadModelInfo() {
     const bodyEl = document.getElementById('models-body');
-    bodyEl.innerHTML = '<p class="models-loading">Cargando modelos…</p>';
+    bodyEl.innerHTML = '<p class="models-loading">Cargando…</p>';
     try {
-        const [pa, mm] = await Promise.all([
-            fetch(`/api/predict_all?${params}`).then((r) => r.json()),
-            fetch('/api/models').then((r) => r.json()),
-        ]);
-        renderModels(mergeModels(pa, mm));
+        const info = await fetch('/api/model').then((r) => r.json());
+        renderModelInfo(info);
     } catch (e) {
         bodyEl.innerHTML = '<p class="models-loading">No disponible.</p>';
     }
 }
 
-function renderModels(rows) {
+function renderModelInfo(info) {
     const bodyEl = document.getElementById('models-body');
-    if (!rows.length) { bodyEl.innerHTML = '<p class="models-loading">Sin modelos.</p>'; return; }
+    const m = info.metrics || {};
     const fmt = (x, d = 3) => (x === null || x === undefined ? '—' : Number(x).toFixed(d));
-    const trs = rows.map((r) => {
-        const probs = r.error ? '<td colspan="2">error</td>'
-            : `<td>${fmt(r.prob_a, 1)}%</td><td>${fmt(r.prob_b, 1)}%</td>`;
-        return `<tr class="${r.name === 'gbm' ? 'is-main' : ''}">
-            <td class="mname">${r.name}</td>${probs}
-            <td>${fmt(r.auc)}</td><td>${fmt(r.log_loss)}</td>
-            <td>${fmt(r.brier)}</td><td>${fmt(r.accuracy)}</td></tr>`;
-    }).join('');
-    bodyEl.innerHTML = `
+
+    const metricsTable = `
         <table class="models-table">
-            <thead><tr>
-                <th>Modelo</th><th>Prob A</th><th>Prob B</th>
-                <th>AUC</th><th>LogLoss</th><th>Brier</th><th>Acc</th>
-            </tr></thead>
-            <tbody>${trs}</tbody>
-        </table>
-        <p class="models-note">Probabilidades del partido actual · métricas del test ciego 2026. Menor log-loss = mejor.</p>`;
+            <thead><tr><th>AUC</th><th>LogLoss</th><th>Brier</th><th>Accuracy</th></tr></thead>
+            <tbody><tr>
+                <td>${fmt(m.auc)}</td><td>${fmt(m.log_loss)}</td>
+                <td>${fmt(m.brier)}</td><td>${fmt(m.accuracy)}</td>
+            </tr></tbody>
+        </table>`;
+
+    // Coeficientes ordenados por magnitud: odds-ratio interpretable por feature.
+    const coefs = Object.entries(info.coeficientes || {})
+        .sort((a, b) => Math.abs(b[1].coef) - Math.abs(a[1].coef));
+    const maxAbs = coefs.reduce((mx, [, v]) => Math.max(mx, Math.abs(v.coef)), 1e-9);
+    const coefRows = coefs.map(([k, v]) => {
+        const pct = (Math.abs(v.coef) / maxAbs) * 100;
+        const towardA = v.coef >= 0;
+        return `<div class="fbar">
+            <span class="fname">${COEF_LABELS[k] || k}</span>
+            <div class="ftrack">
+                <div class="ffill ${towardA ? 'toward-a' : 'toward-b'}" style="width:${pct}%"></div>
+                <span class="fval ${towardA ? 'on-a' : 'on-b'}">OR ${v.odds_ratio.toFixed(2)}</span>
+            </div></div>`;
+    }).join('');
+
+    bodyEl.innerHTML = `
+        ${metricsTable}
+        <p class="models-note">Regresión logística calibrada · test ciego 2025 (n=2861). Menor log-loss = mejor.</p>
+        <div class="coef-head"><strong>Coeficientes (odds-ratio por +1 desviación estándar)</strong></div>
+        <div class="factor-bars">${coefRows}</div>
+        <p class="models-note">OR &gt; 1 (verde) inclina hacia el Jugador A; OR &lt; 1 (rojo) hacia el B. Es el peso real del modelo, no la diferencia del partido.</p>`;
 }
 
 })();

@@ -1,158 +1,94 @@
+"""
+Entrenamiento del modelo único: Regresión Logística calibrada.
+==============================================================
+
+Tras el estudio de feature importance + ablación (test ciego 2025, n=2861), un
+modelo lineal (LogReg) iguala a GBM/RF/XGBoost en AUC y log-loss: toda la señal es
+lineal en las diferencias de ELO/rank. Se elige LogReg por ser el óptimo de
+rigor + explicabilidad (coeficientes = odds-ratio interpretables) + minimalismo.
+El multi-modelo y el ensemble se retiran: no aportaban señal medible (IC95% ±0.009).
+"""
+
 import numpy as np
 from sklearn.base import clone
 from sklearn.calibration import CalibratedClassifierCV
-from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
-from xgboost import XGBClassifier
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 from src.cv import purged_time_series_splits
 
 
-class SoftVotingEnsemble:
-    """Promedia las probabilidades de un conjunto de modelos ya entrenados."""
-
-    def __init__(self, modelos):
-        self._modelos = list(modelos.values()) if isinstance(modelos, dict) else list(modelos)
-
-    def predict_proba(self, X):
-        probas = np.mean([m.predict_proba(X) for m in self._modelos], axis=0)
-        return probas
-
-    def predict(self, X):
-        return (self.predict_proba(X)[:, 1] >= 0.5).astype(int)
-
-
-def crear_ensemble(modelos_calibrados):
-    """Crea un SoftVotingEnsemble a partir de los modelos calibrados."""
-    return SoftVotingEnsemble(modelos_calibrados)
-
-
-def entrenar_modelo(X_train, y_train, param_grid=None, dates=None, embargo_days=7):
-    if param_grid is None:
-        param_grid = {
-            'max_depth': [3, 4, 5],
-            'learning_rate': [0.01, 0.05, 0.1],
-            'n_estimators': [100, 150],
-        }
-
-    # CV temporal con embargo: rompe la fuga blanda en la frontera train/val
-    # (partidos contiguos comparten estado ELO casi idéntico). Sin fechas → fallback.
+def _build_cv(dates, embargo_days, fallback):
+    """CV temporal con embargo si hay fechas; si no, fallback (TimeSeriesSplit o int)."""
     if dates is not None:
-        cv = list(purged_time_series_splits(dates, n_splits=5, embargo_days=embargo_days))
-    else:
-        cv = TimeSeriesSplit(n_splits=5)
+        return list(purged_time_series_splits(dates, n_splits=5, embargo_days=embargo_days))
+    return fallback
+
+
+def crear_pipeline():
+    """LogReg estandarizada. El StandardScaler deja los coeficientes en unidades de
+    desviación estándar → comparables entre features de escalas distintas (ELO vs rank)."""
+    return make_pipeline(
+        StandardScaler(),
+        LogisticRegression(max_iter=1000, random_state=42),
+    )
+
+
+def entrenar_modelo(X, y, dates=None, embargo_days=7, param_grid=None):
+    """
+    Entrena LogReg con GridSearchCV(neg_log_loss) + CV temporal purgado.
+
+    Returns
+    -------
+    (best_pipeline, cv_log_loss, best_params)
+    """
+    if param_grid is None:
+        param_grid = {'logisticregression__C': [0.01, 0.1, 1.0, 10.0]}
+    cv = _build_cv(dates, embargo_days, TimeSeriesSplit(n_splits=5))
 
     # El producto es la probabilidad de victoria → optimizamos log-loss, no accuracy.
-    # accuracy elige hiperparámetros que aciertan el binario pero calibran mal la proba.
-    grid_search = GridSearchCV(
-        estimator=GradientBoostingClassifier(random_state=42),
+    gs = GridSearchCV(
+        estimator=crear_pipeline(),
         param_grid=param_grid,
         cv=cv,
         scoring='neg_log_loss',
         n_jobs=-1,
-        verbose=1,
+        verbose=0,
     )
-    grid_search.fit(X_train, y_train)
-
-    print(f"Mejores parámetros: {grid_search.best_params_}")
-    print(f"Mejor CV log-loss: {-grid_search.best_score_:.4f}")
-
-    return grid_search.best_estimator_
+    gs.fit(X, y)
+    return gs.best_estimator_, -gs.best_score_, gs.best_params_
 
 
-def calibrar_modelo(modelo_base, X, y, dates=None, embargo_days=7, method="isotonic"):
+def calibrar_modelo(modelo_base, X, y, dates=None, embargo_days=7, method="sigmoid"):
     """
-    Envuelve modelo_base en CalibratedClassifierCV usando fold temporal para evitar
-    leakage. Si dates viene, usa purged_time_series_splits (mismo CV que entrenamiento).
+    Calibra con CV temporal purgado (mismo CV que entrenamiento, sin leakage).
+    Para n grande + modelo lineal, sigmoid (Platt) es estable; isotonic sobreajusta
+    escalones en folds pequeños y mete varianza.
     """
-    if dates is not None:
-        cv = list(purged_time_series_splits(dates, n_splits=5, embargo_days=embargo_days))
-    else:
-        cv = 5
-
+    cv = _build_cv(dates, embargo_days, 5)
     calibrado = CalibratedClassifierCV(estimator=clone(modelo_base), method=method, cv=cv)
     calibrado.fit(X, y)
     return calibrado
 
 
-def comparar_calibracion(modelo_base, X, y, dates=None, embargo_days=7):
+def coeficientes_modelo(pipeline, features):
     """
-    Compara sigmoid (Platt) vs isotonic por log-loss en CV temporal purgado.
-    Isotonic sobreajusta en folds pequeños (n<500); sigmoid más estable.
-    Devuelve {'sigmoid_log_loss', 'isotonic_log_loss', 'mejor'}.
-    """
-    from sklearn.metrics import log_loss as _log_loss
-    resultados = {}
-    for method in ('sigmoid', 'isotonic'):
-        cal = calibrar_modelo(modelo_base, X, y,
-                              dates=dates, embargo_days=embargo_days,
-                              method=method)
-        proba = cal.predict_proba(X)[:, 1]
-        resultados[f'{method}_log_loss'] = _log_loss(y, proba, labels=[0, 1])
-    mejor = 'sigmoid' if resultados['sigmoid_log_loss'] <= resultados['isotonic_log_loss'] else 'isotonic'
-    resultados['mejor'] = mejor
-    return resultados
+    Explicabilidad del modelo: coeficiente y odds-ratio por feature.
 
-
-_DEFINICIONES_MODELOS = [
-    (
-        "logreg",
-        LogisticRegression(max_iter=1000, random_state=42),
-        {'C': [0.01, 0.1, 1.0, 10.0]},
-    ),
-    (
-        "randomforest",
-        RandomForestClassifier(random_state=42),
-        {'n_estimators': [100, 200], 'max_depth': [None, 5, 10]},
-    ),
-    (
-        "gbm",
-        GradientBoostingClassifier(random_state=42),
-        {'max_depth': [3, 4, 5], 'learning_rate': [0.01, 0.05, 0.1], 'n_estimators': [100, 150]},
-    ),
-    (
-        "xgboost",
-        XGBClassifier(random_state=42, eval_metric='logloss', verbosity=0),
-        {'n_estimators': [100, 150], 'max_depth': [3, 5], 'learning_rate': [0.05, 0.1]},
-    ),
-]
-
-
-def entrenar_todos_los_modelos(X, y, dates=None, embargo_days=7):
-    """
-    Entrena LogReg baseline, RandomForest, GBM y XGBoost con GridSearchCV (neg_log_loss)
-    + CV temporal purgado. Cada modelo se calibra con CalibratedClassifierCV(isotonic).
+    El pipeline estandariza, así que cada coeficiente es el efecto de mover esa feature
+    +1 desviación estándar sobre el log-odds de victoria de A. odds_ratio = exp(coef):
+    >1 favorece a A, <1 favorece a B. Devuelto ordenado por |coef| descendente.
 
     Returns
     -------
-    (modelos_calibrados, base_estimators) — dicts {nombre: modelo}.
-    base_estimators permite graficar importancia sin recalcular el grid search.
+    dict {feature: {'coef': float, 'odds_ratio': float}}
     """
-    if dates is not None:
-        cv = list(purged_time_series_splits(dates, n_splits=5, embargo_days=embargo_days))
-    else:
-        cv = TimeSeriesSplit(n_splits=5)
-
-    modelos_calibrados = {}
-    base_estimators = {}
-    cv_scores = {}
-    for nombre, estimador, param_grid in _DEFINICIONES_MODELOS:
-        print(f"\n  [{nombre}] GridSearchCV...")
-        gs = GridSearchCV(
-            estimator=estimador,
-            param_grid=param_grid,
-            cv=cv,
-            scoring='neg_log_loss',
-            n_jobs=-1,
-            verbose=0,
-        )
-        gs.fit(X, y)
-        cv_log_loss = -gs.best_score_
-        print(f"    best_params={gs.best_params_}  cv_log_loss={cv_log_loss:.4f}")
-        base_estimators[nombre] = gs.best_estimator_
-        cv_scores[nombre] = cv_log_loss
-        modelos_calibrados[nombre] = calibrar_modelo(gs.best_estimator_, X, y,
-                                                     dates=dates, embargo_days=embargo_days)
-
-    return modelos_calibrados, base_estimators, cv_scores
+    lr = pipeline.named_steps['logisticregression']
+    coefs = lr.coef_[0]
+    out = {
+        feat: {'coef': float(c), 'odds_ratio': float(np.exp(c))}
+        for feat, c in zip(features, coefs)
+    }
+    return dict(sorted(out.items(), key=lambda kv: abs(kv[1]['coef']), reverse=True))

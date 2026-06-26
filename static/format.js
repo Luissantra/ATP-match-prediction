@@ -12,8 +12,6 @@ const FACTOR_SCALES = {
   diff_elo_sup: 300,
   diff_rank: 250, // = RANK_CAP del backend
   diff_age: 10,
-  diff_h2h: 1,
-  diff_form: 1,
 };
 
 function clamp(x, lo, hi) {
@@ -42,38 +40,8 @@ function formatRank(rank) {
   return `#${rank}`;
 }
 
-// Fusiona la respuesta de /api/predict_all con las métricas de /api/models en un
-// array de filas para la tabla comparativa, indexando por nombre de modelo.
-// Modelos con predicción pero sin métricas → métricas a null. Modelos con error
-// → probas a null y se conserva el campo `error`.
-function mergeModels(predictAll, modelsMetrics) {
-  const predictions = (predictAll && predictAll.predictions) || {};
-  const metrics = modelsMetrics || [];
-  const metricsByName = {};
-  for (const m of metrics) {
-    metricsByName[m.nombre] = m;
-  }
-
-  return Object.keys(predictions).map((name) => {
-    const pred = predictions[name] || {};
-    const met = metricsByName[name] || {};
-    const hasError = Boolean(pred.error);
-    return {
-      name,
-      prob_a: hasError ? null : (pred.prob_a ?? null),
-      prob_b: hasError ? null : (pred.prob_b ?? null),
-      predicted_winner: hasError ? null : (pred.predicted_winner ?? null),
-      error: pred.error || null,
-      accuracy: met.accuracy ?? null,
-      log_loss: met.log_loss ?? null,
-      brier: met.brier ?? null,
-      auc: met.auc ?? null,
-    };
-  });
-}
-
 // Exposición dual.
-const API = { normalizeFactor, formatDiff, formatRank, mergeModels, FACTOR_SCALES };
+const API = { normalizeFactor, formatDiff, formatRank, FACTOR_SCALES };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = API;
 }

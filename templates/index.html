@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=4">
+    <link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body class="surface-hard">
 
@@ -19,7 +19,7 @@
         <header class="app-header">
             <p class="eyebrow"><span class="dot"></span>ATP · MATCH FORECAST · 2026</p>
             <h1>Predicción de partido</h1>
-            <p class="subtitle">Modelo de probabilidad sobre ELO híbrido, ranking ATP, head-to-head y forma reciente. Elige superficie, torneo y dos jugadores.</p>
+            <p class="subtitle">Modelo de probabilidad (regresión logística calibrada) sobre ELO general y de superficie, ranking ATP y edad. Elige superficie y dos jugadores.</p>
         </header>
 
         <!-- ============================ CONTROLES ============================ -->
@@ -40,28 +40,6 @@
                         <label class="pill grass">
                             <input type="radio" name="surface" value="Grass">
                             <span class="pill-mark"></span><span class="pill-text">Césped</span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="selector-group">
-                    <label class="field-label">Nivel de torneo</label>
-                    <div class="pill-group" id="level-group">
-                        <label class="pill level active">
-                            <input type="radio" name="level" value="250" checked>
-                            <span class="pill-text">ATP 250</span>
-                        </label>
-                        <label class="pill level">
-                            <input type="radio" name="level" value="500">
-                            <span class="pill-text">ATP 500</span>
-                        </label>
-                        <label class="pill level">
-                            <input type="radio" name="level" value="M">
-                            <span class="pill-text">Masters</span>
-                        </label>
-                        <label class="pill level">
-                            <input type="radio" name="level" value="G">
-                            <span class="pill-text">Grand Slam</span>
                         </label>
                     </div>
                 </div>
@@ -184,27 +162,27 @@
                 </div>
             </div>
 
-            <!-- Comparar modelos (colapsable) -->
+            <!-- Detalle del modelo: métricas + coeficientes (explicabilidad) -->
             <details class="models">
                 <summary>
-                    <span>Comparar los 4 modelos</span>
+                    <span>Detalle del modelo</span>
                     <span class="chevron">▾</span>
                 </summary>
                 <div class="models-body" id="models-body">
-                    <p class="models-loading">Cargando modelos…</p>
+                    <p class="models-loading">Cargando…</p>
                 </div>
             </details>
 
         </section>
 
         <footer class="app-footer">
-            <p>Gradient Boosting + GridSearchCV (scoring log-loss) · test ciego 2026 ~AUC 0.61.</p>
+            <p>Regresión logística calibrada + GridSearchCV (scoring log-loss) · test ciego 2025 (n=2861) · AUC 0.71.</p>
             <p>Datos del circuito ATP: <a href="https://stats.tennismylife.org/" target="_blank" rel="noopener">TML-Database</a>, inspirado en Jeff Sackmann.</p>
         </footer>
 
     </div>
 
-    <script src="/static/format.js?v=4"></script>
-    <script src="/static/script.js?v=4"></script>
+    <script src="/static/format.js?v=5"></script>
+    <script src="/static/script.js?v=5"></script>
 </body>
 </html>

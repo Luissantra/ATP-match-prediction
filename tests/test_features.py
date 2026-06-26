@@ -22,8 +22,7 @@ class TestVectorFromFeatures:
         return {
             'diff_elo_general': 100.0, 'diff_elo_sup': 200.0,
             'diff_rank': -5.0, 'is_unranked': 0,
-            'diff_age': 2.0, 'diff_h2h': 0.3,
-            'diff_form': 0.1, 'tourney_level_num': 4,
+            'diff_age': 2.0,
         }
 
     def test_orden_coincide_con_FEATURES(self):
@@ -36,12 +35,16 @@ class TestVectorFromFeatures:
 
     def test_falta_clave_lanza_error(self):
         feat = self._feat()
-        del feat['diff_h2h']
+        del feat['diff_age']
         with pytest.raises(KeyError):
             vector_from_features(feat)
 
-    def test_features_tiene_8_elementos(self):
-        assert len(FEATURES) == 8
+    def test_features_tiene_5_elementos(self):
+        assert len(FEATURES) == 5
+
+    def test_features_no_incluye_h2h_form_level(self):
+        for podada in ('diff_h2h', 'diff_form', 'tourney_level_num'):
+            assert podada not in FEATURES
 
     def test_rank_cap_es_250(self):
         assert RANK_CAP == 250

@@ -81,11 +81,18 @@ def evaluar_con_ic(modelo, X, y, n_iter=1000, seed=42):
 def evaluar_baseline_elo(df_test, y_true, n_iter=1000, seed=42):
     """
     Baseline obligatorio: ¿cuánto aporta el ML sobre ELO-crudo solo?
-    Usa calcular_expectativa(diff_elo_general) como predictor único.
+
+    Predictor = calcular_expectativa(diff_elo). Baseline HONESTO: usa el ELO híbrido
+    (0.5*general + 0.5*superficie) cuando hay columna de superficie, de modo que reciba
+    la misma información de superficie que el modelo. Usar solo el general infla
+    artificialmente la ventaja del ML. Fallback a general si no hay diff_elo_sup.
     Referencia: si log-loss/AUC del baseline ≈ modelo → el stack ML no añade valor.
     """
     from src.elo import calcular_expectativa
-    diff = df_test['diff_elo_general'].values
+    if 'diff_elo_sup' in df_test.columns:
+        diff = 0.5 * (df_test['diff_elo_general'].values + df_test['diff_elo_sup'].values)
+    else:
+        diff = df_test['diff_elo_general'].values
     proba_baseline = np.array([calcular_expectativa(d, 0) for d in diff])
     y_arr = np.asarray(y_true)
     preds = (proba_baseline >= 0.5).astype(int)
@@ -116,8 +123,11 @@ def evaluar_y_graficar(modelo, X_test, y_test, df_test, features,
 
     os.makedirs("plots", exist_ok=True)
     _plot_confusion_matrix(y_test, preds, accuracy)
+    # El Gini sólo aplica a modelos de árboles. Para el modelo lineal la explicabilidad
+    # se cubre con coeficientes (graficar_coeficientes) y permutation importance.
     modelo_imp = modelo_para_importancia if modelo_para_importancia is not None else modelo
-    _plot_feature_importance(modelo_imp, features)
+    if hasattr(modelo_imp, 'feature_importances_'):
+        _plot_feature_importance(modelo_imp, features)
     _plot_accuracy_by_surface(df_test, preds, accuracy)
 
     return accuracy
@@ -229,9 +239,6 @@ def _plot_feature_importance(modelo, features):
         'diff_rank':         'Ranking',
         'is_unranked':       'Sin Ranking',
         'diff_age':          'Edad',
-        'diff_h2h':          'H2H Histórico',
-        'diff_form':         'Forma Reciente',
-        'tourney_level_num': 'Nivel de Torneo',
     }
     labels = [feature_labels.get(f, f) for f in features]
     importancias = modelo.feature_importances_
@@ -323,9 +330,6 @@ def graficar_permutation_importance(modelo, X, y, features, n_repeats=30, seed=4
         'diff_rank':         'Ranking',
         'is_unranked':       'Sin Ranking',
         'diff_age':          'Edad',
-        'diff_h2h':          'H2H Histórico',
-        'diff_form':         'Forma Reciente',
-        'tourney_level_num': 'Nivel de Torneo',
     }
     feats_sorted = list(imp.keys())
     means = np.array([imp[f]['mean'] for f in feats_sorted])
@@ -348,6 +352,42 @@ def graficar_permutation_importance(modelo, X, y, features, n_repeats=30, seed=4
     sns.despine()
     plt.tight_layout()
     plt.savefig("plots/permutation_importance.png", dpi=300)
+    plt.close()
+
+
+def graficar_coeficientes(coefs, features=None):
+    """
+    Explicabilidad del modelo lineal: coeficientes estandarizados (log-odds por +1 std).
+    Barras divergentes: positivo (verde) favorece a A, negativo (rojo) favorece a B.
+    `coefs` = dict {feature: {'coef': float, 'odds_ratio': float}} (de coeficientes_modelo).
+    """
+    feature_labels = {
+        'diff_elo_general':  'ELO General',
+        'diff_elo_sup':      'ELO Superficie',
+        'diff_rank':         'Ranking',
+        'is_unranked':       'Sin Ranking',
+        'diff_age':          'Edad',
+    }
+    items = sorted(coefs.items(), key=lambda kv: kv[1]['coef'])
+    labels = [feature_labels.get(f, f) for f, _ in items]
+    valores = [v['coef'] for _, v in items]
+    colores = ["#27ae60" if c > 0 else "#c0392b" for c in valores]
+
+    os.makedirs("plots", exist_ok=True)
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    ax.barh(range(len(valores)), valores, color=colores, edgecolor='none', height=0.6)
+    ax.set_yticks(range(len(valores)))
+    ax.set_yticklabels(labels, fontsize=11)
+    ax.axvline(0, color='#7f8c8d', linewidth=0.8, linestyle='--')
+    for i, (_, v) in enumerate(items):
+        ax.text(v['coef'], i, f"  OR={v['odds_ratio']:.2f}", va='center',
+                ha='left' if v['coef'] >= 0 else 'right', fontsize=9, color='#2c3e50')
+    ax.set_xlabel("Coeficiente LogReg (log-odds por +1 std)", fontsize=11)
+    ax.set_title("Coeficientes del Modelo (Explicabilidad)\n+ favorece al Jugador A · − favorece al Jugador B",
+                 fontsize=12, pad=15, weight='bold')
+    sns.despine()
+    plt.tight_layout()
+    plt.savefig("plots/coeficientes_modelo.png", dpi=300)
     plt.close()
 
 

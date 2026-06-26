@@ -5,7 +5,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from src.data_processing import preparar_datos_entrenamiento, LEVEL_MAP
+from src.data_processing import preparar_datos_entrenamiento
 
 
 def _make_df_with_elo():
@@ -54,8 +54,7 @@ def test_total_feature_columns():
         'year', 'tourney_date', 'surface',
         'diff_elo_general', 'diff_elo_sup',
         'diff_rank', 'is_unranked',
-        'diff_age', 'diff_h2h', 'diff_form',
-        'tourney_level_num', 'label',
+        'diff_age', 'label',
     }
     assert set(result.columns) == expected
 
@@ -78,10 +77,11 @@ def test_rank_cap_limita_outlier():
 
 
 def test_is_unranked_detecta_wildcard():
-    """Cuando un jugador tiene rank 999, is_unranked != 0."""
+    """Cuando un jugador NO tiene ranking real (NaN → wildcard/qualifier), is_unranked != 0.
+    Un rank numérico alto (p.ej. 999/2000) NO debe marcarse como sin-ranking."""
     df = pd.DataFrame([{
         'tourney_date': 20240101, 'surface': 'Hard', 'tourney_level': 'G',
-        'winner_rank': 1.0, 'loser_rank': 999.0,
+        'winner_rank': 1.0, 'loser_rank': np.nan,
         'winner_age': 25.0, 'loser_age': 27.0,
         'elo_winner': 1650.0, 'elo_loser': 1500.0,
         'elo_winner_general': 1700.0, 'elo_loser_general': 1500.0,
@@ -100,43 +100,18 @@ def test_is_unranked_cero_cuando_ambos_rankeados():
     assert result.iloc[1]['is_unranked'] == 0
 
 
-def test_level_map_grand_slam():
-    assert LEVEL_MAP['G'] == 5
-
-
-def test_level_map_masters():
-    assert LEVEL_MAP['M'] == 4
-
-
-def test_level_map_500():
-    assert LEVEL_MAP['500'] == 2
-    assert LEVEL_MAP['A'] == 2
-
-
-def test_level_map_250():
-    assert LEVEL_MAP['250'] == 1
-    assert LEVEL_MAP['D'] == 1
-
-
-def test_tourney_level_encoded_correctly():
-    df = _make_df_with_elo()
+def test_rank_numerico_alto_no_es_unranked():
+    """Fix del centinela: un rank real alto (2000) NO es 'sin ranking' (solo NaN lo es)."""
+    df = pd.DataFrame([{
+        'tourney_date': 20240101, 'surface': 'Hard', 'tourney_level': 'G',
+        'winner_rank': 1.0, 'loser_rank': 2000.0,
+        'winner_age': 25.0, 'loser_age': 27.0,
+        'elo_winner': 1650.0, 'elo_loser': 1500.0,
+        'elo_winner_general': 1700.0, 'elo_loser_general': 1500.0,
+        'elo_winner_sup': 1600.0, 'elo_loser_sup': 1500.0,
+    }])
     result = preparar_datos_entrenamiento(df)
-    assert result.iloc[0]['tourney_level_num'] == 5  # G
-    assert result.iloc[1]['tourney_level_num'] == 4  # M
-
-
-def test_diff_h2h_absolute_value():
-    """Valor absoluto de diff_h2h primera fila: |0.75 - 0.25| = 0.5"""
-    df = _make_df_with_elo()
-    result = preparar_datos_entrenamiento(df)
-    assert abs(result.iloc[0]['diff_h2h']) == pytest.approx(0.5, abs=1e-9)
-
-
-def test_diff_form_absolute_value():
-    """Valor absoluto de diff_form primera fila: |0.8 - 0.4| = 0.4"""
-    df = _make_df_with_elo()
-    result = preparar_datos_entrenamiento(df)
-    assert abs(result.iloc[0]['diff_form']) == pytest.approx(0.4, abs=1e-9)
+    assert result.iloc[0]['is_unranked'] == 0
 
 
 def test_label_balanced():
@@ -197,69 +172,6 @@ def test_preparar_datos_seed_diferente_da_diferente_shuffle():
     assert not (r1['label'].values == r2['label'].values).all()
 
 
-# --- Tests I8: crear_dataset_visual ---
-
-import csv as _csv
-import tempfile
-from src.data_processing import crear_dataset_visual
-
-
-def _make_visual_csv(filepath, n=40):
-    rows = [{
-        'winner_name': f'A{i}', 'loser_name': f'B{i}',
-        'winner_rank': float(10 + i), 'loser_rank': float(20 + i),
-        'winner_age': 25.0, 'loser_age': 27.0,
-        'winner_ht': 185.0, 'loser_ht': 180.0,
-    } for i in range(n)]
-    with open(filepath, 'w', newline='') as f:
-        writer = _csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
-
-
-def test_crear_dataset_visual_columnas():
-    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as tmp:
-        fname = tmp.name
-    _make_visual_csv(fname)
-    result = crear_dataset_visual(fname)
-    assert {'diff_rank', 'diff_age', 'diff_ht', 'label'}.issubset(result.columns)
-
-
-def test_crear_dataset_visual_sin_nans():
-    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as tmp:
-        fname = tmp.name
-    _make_visual_csv(fname)
-    result = crear_dataset_visual(fname)
-    assert not result.isnull().any().any()
-
-
-def test_crear_dataset_visual_label_binario():
-    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as tmp:
-        fname = tmp.name
-    _make_visual_csv(fname)
-    result = crear_dataset_visual(fname)
-    assert set(result['label'].unique()).issubset({0, 1})
-
-
-def test_crear_dataset_visual_determinista():
-    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as tmp:
-        fname = tmp.name
-    _make_visual_csv(fname, n=40)
-    r1 = crear_dataset_visual(fname, seed=42)
-    r2 = crear_dataset_visual(fname, seed=42)
-    assert (r1['label'].values == r2['label'].values).all()
-    assert (r1['diff_rank'].values == r2['diff_rank'].values).all()
-
-
-def test_crear_dataset_visual_seeds_distintos_dan_shuffles_distintos():
-    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as tmp:
-        fname = tmp.name
-    _make_visual_csv(fname, n=40)
-    r1 = crear_dataset_visual(fname, seed=42)
-    r2 = crear_dataset_visual(fname, seed=99)
-    assert not (r1['label'].values == r2['label'].values).all()
-
-
 def test_simetrizacion_coherencia_label_diff_rank():
     """label=1 (A=ganador) → diff_rank negativo (ganador mejor rankeado que perdedor)."""
     n = 200
@@ -290,18 +202,3 @@ def test_simetrizacion_coherencia_label_diff_elo():
 
     assert (label_1['diff_elo_general'] == 200.0).all()
     assert (label_0['diff_elo_general'] == -200.0).all()
-
-
-def test_crear_dataset_visual_imputa_nans():
-    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as tmp:
-        fname = tmp.name
-    rows = [{'winner_name': 'A', 'loser_name': 'B',
-              'winner_rank': '', 'loser_rank': '',
-              'winner_age': '', 'loser_age': '',
-              'winner_ht': '', 'loser_ht': ''}]
-    with open(fname, 'w', newline='') as f:
-        writer = _csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
-    result = crear_dataset_visual(fname)
-    assert not result.isnull().any().any()
