@@ -177,3 +177,53 @@ def test_diagnosticar_gap_devuelve_string():
 def test_diagnosticar_gap_no_dice_confirmado():
     msg = diagnosticar_gap_cv_test(cv_best_score=0.620, test_log_loss=0.683, n_test=137)
     assert 'confirmado' not in msg.lower()
+
+
+# --- Tests M4: permutation_importancia + graficar_permutation_importance ---
+
+from sklearn.ensemble import GradientBoostingClassifier
+from src.evaluate import permutation_importancia, graficar_permutation_importance
+
+
+def _modelo_discriminativo():
+    """GBM donde la primera feature determina el label (segunda = ruido puro)."""
+    rng = np.random.default_rng(0)
+    n = 300
+    X = rng.standard_normal((n, 2))
+    y = (X[:, 0] > 0).astype(int)
+    modelo = GradientBoostingClassifier(n_estimators=20, random_state=0).fit(X, y)
+    return modelo, X, y, ['diff_elo_general', 'ruido']
+
+
+def test_permutation_importancia_keys():
+    modelo, X, y, feats = _modelo_discriminativo()
+    result = permutation_importancia(modelo, X, y, feats, n_repeats=5, seed=42)
+    assert set(result.keys()) == set(feats)
+
+
+def test_permutation_importancia_structure():
+    modelo, X, y, feats = _modelo_discriminativo()
+    result = permutation_importancia(modelo, X, y, feats, n_repeats=5, seed=42)
+    for v in result.values():
+        assert 'mean' in v and 'std' in v
+        assert isinstance(v['mean'], float)
+        assert isinstance(v['std'], float)
+        assert v['std'] >= 0
+
+
+def test_permutation_importancia_feature_informativa_supera_ruido():
+    modelo, X, y, feats = _modelo_discriminativo()
+    result = permutation_importancia(modelo, X, y, feats, n_repeats=10, seed=42)
+    assert result['diff_elo_general']['mean'] > result['ruido']['mean']
+
+
+def test_graficar_permutation_importance_crea_archivo():
+    modelo, X, y, feats = _modelo_discriminativo()
+    orig_dir = os.getcwd()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.chdir(tmpdir)
+        try:
+            graficar_permutation_importance(modelo, X, y, feats, n_repeats=5)
+            assert os.path.exists("plots/permutation_importance.png")
+        finally:
+            os.chdir(orig_dir)

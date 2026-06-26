@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.base import clone
 from sklearn.calibration import calibration_curve
+from sklearn.inspection import permutation_importance as _sk_permutation_importance
 from sklearn.model_selection import learning_curve
 from sklearn.metrics import (
     accuracy_score, classification_report, confusion_matrix,
@@ -284,6 +285,69 @@ def _plot_accuracy_by_surface(df_test, preds, accuracy_global):
     sns.despine()
     plt.tight_layout()
     plt.savefig("plots/precision_por_superficie.png", dpi=300)
+    plt.close()
+
+
+def permutation_importancia(modelo, X, y, features, n_repeats=30, seed=42):
+    """
+    Importancia por permutación (scoring=neg_log_loss).
+    Más robusta que Gini para features correladas (e.g. diff_elo_general / diff_elo_sup).
+    Un valor > 0 indica que permutar esa feature empeora el log-loss → feature útil.
+
+    Returns
+    -------
+    dict {feature_name: {'mean': float, 'std': float}}, ordenado de mayor a menor importancia.
+    """
+    result = _sk_permutation_importance(
+        modelo, X, y,
+        n_repeats=n_repeats,
+        scoring='neg_log_loss',
+        random_state=seed,
+    )
+    importancias = {
+        feat: {'mean': float(result.importances_mean[i]), 'std': float(result.importances_std[i])}
+        for i, feat in enumerate(features)
+    }
+    return dict(sorted(importancias.items(), key=lambda kv: kv[1]['mean'], reverse=True))
+
+
+def graficar_permutation_importance(modelo, X, y, features, n_repeats=30, seed=42):
+    """
+    Grafica la importancia por permutación con barras de error (±1 std).
+    Reemplaza/complementa el Gini plot para comparación honesta entre features correladas.
+    """
+    imp = permutation_importancia(modelo, X, y, features, n_repeats=n_repeats, seed=seed)
+    feature_labels = {
+        'diff_elo_general':  'ELO General',
+        'diff_elo_sup':      'ELO Superficie',
+        'diff_rank':         'Ranking',
+        'is_unranked':       'Sin Ranking',
+        'diff_age':          'Edad',
+        'diff_h2h':          'H2H Histórico',
+        'diff_form':         'Forma Reciente',
+        'tourney_level_num': 'Nivel de Torneo',
+    }
+    feats_sorted = list(imp.keys())
+    means = np.array([imp[f]['mean'] for f in feats_sorted])
+    stds  = np.array([imp[f]['std']  for f in feats_sorted])
+    labels = [feature_labels.get(f, f) for f in feats_sorted]
+
+    os.makedirs("plots", exist_ok=True)
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    colors = ["#27ae60" if m > 0 else "#c0392b" for m in means]
+    ax.barh(range(len(means)), means, xerr=stds, color=colors, edgecolor='none',
+            height=0.6, capsize=4, error_kw={'elinewidth': 1.2, 'ecolor': '#7f8c8d'})
+    ax.set_yticks(range(len(means)))
+    ax.set_yticklabels(labels, fontsize=11)
+    ax.axvline(0, color='#7f8c8d', linewidth=0.8, linestyle='--')
+    ax.set_xlabel("Importancia por permutación (Δ neg-log-loss, ±1 std)", fontsize=11)
+    ax.set_title(
+        "Importancia por Permutación\n¿Qué factores importan realmente (sin sesgo por correlación)?",
+        fontsize=12, pad=15, weight='bold',
+    )
+    sns.despine()
+    plt.tight_layout()
+    plt.savefig("plots/permutation_importance.png", dpi=300)
     plt.close()
 
 

@@ -24,7 +24,8 @@
 14. **✅ I6 · Validar columnas CSV** — hecho. `ValueError` descriptivo. 2 tests nuevos.
 15. **✅ N1 · Notebook didáctico** — hecho. `notebooks/atp_resumen.ipynb` (ELO, híbrido, simetrización, 8 features, CV con embargo, métricas honestas).
 16. **✅ Épica Q · Calidad estadística** — hecho (2026-06-26). Rigor estadístico 4/10 → 7/10: IC95% bootstrap en métricas, baseline ELO-crudo, MOV + K-schedule en ELO, calibración automática sigmoid/isotonic, notebook honesto. 132 tests.
-17. **▶️ M4 (SHAP)** — tras Q (la importancia robusta encaja con la épica de calidad).
+17. **✅ M4 · Permutation importance** — hecho. `permutation_importancia` + `graficar_permutation_importance` en `src/evaluate.py`. 140 tests.
+18. **▶️ I8** — `crear_dataset_visual` (siguiente).
 
 Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar este roadmap al cerrar.
 
@@ -85,7 +86,7 @@ Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar e
 - [x] **M1 · `actualizar_ratings` redondea a 1 decimal en cada update** ✅ Resuelto. Full-precision en updates; redondear solo al mostrar.
 - [x] **M2 · `/api/predict` no valida `player_a == player_b`.** ✅ Resuelto (Fase 1): devuelve 400.
 - [x] **M3 · `custom_tree.py` no se usa en el pipeline.** ✅ Movido a `archive/`.
-- [ ] **M4 · Feature importance Gini engaña con features correladas** (diff_elo/diff_rank). Añadir `permutation_importance` o **SHAP** (también habilita explicación por-predicción en la UI).
+- [x] **M4 · Feature importance Gini engaña con features correladas** (diff_elo/diff_rank). ✅ `permutation_importancia` + `graficar_permutation_importance` en `src/evaluate.py`; scoring=neg_log_loss, barras ±1std. 4 tests nuevos. Integrado en `main.py` tras los plots existentes. 140 tests total.
 - [x] **M5 · `test_label_balanced` flojo** ✅ Resuelto. Assert exacto `ratio == 0.47` (seed=42, 100 filas).
 
 ---

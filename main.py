@@ -8,7 +8,7 @@ from src.train import calibrar_modelo, comparar_calibracion, entrenar_todos_los_
 from src.evaluate import (
     evaluar, evaluar_con_ic, evaluar_baseline_elo, evaluar_y_graficar,
     graficar_learning_curve, graficar_reliability_diagram, graficar_histograma_probas,
-    diagnosticar_gap_cv_test,
+    graficar_permutation_importance, diagnosticar_gap_cv_test,
 )
 from src.cv import purged_time_series_splits
 
@@ -77,6 +77,7 @@ if __name__ == "__main__":
     graficar_learning_curve(modelo_base_gbm, X_train, y_train, cv_splits)
     graficar_reliability_diagram(modelo, X_test, y_test)
     graficar_histograma_probas(modelo, X_test, y_test)
+    graficar_permutation_importance(modelo, X_test.values, y_test.values, FEATURES)
 
     print("\n[4b/5] Baseline ELO-crudo vs ML (¿aporta el stack?)...")
     met_baseline = evaluar_baseline_elo(df_test, y_test)
