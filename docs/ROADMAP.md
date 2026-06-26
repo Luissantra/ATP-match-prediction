@@ -46,7 +46,7 @@ Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar e
 
 - [ ] **G1 · Frontend no envía `tourney_level`** → la UI siempre usa el default (1). La API ya lo acepta. *Decisión: diferir* — es trabajo de UI (dropdown en `index.html` + `script.js`) y requiere verificación en navegador; no bloquea la calidad del modelo. Cerrar tras las fases P0.
 - [x] **G2 · `cargar_modelo` no valida `sklearn_version`** ✅ Resuelto (Fase 4). `app.verificar_version_sklearn()` avisa si la versión del pkl difiere de la instalada (3 tests). Cubre la mitad pendiente de **I4**.
-- [ ] **G3 · Falta test de endpoint `/api/predict` vía `test_client`** (superficie inválida, faltan params, jugador desconocido marcado). *Decisión: near-term* — barato; cerrar junto a I9 antes de la épica multi-modelo.
+- [x] **G3 · Falta test de endpoint `/api/predict` vía `test_client`** ✅ Resuelto. Tests en `tests/test_api_endpoints.py`: superficie inválida, player_a/b faltantes, mismo jugador, jugador desconocido (defaults). 81 tests total.
 
 ---
 
@@ -68,7 +68,7 @@ Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar e
 - [~] **I9 · Tests no cubren lo crítico.** Parcial (Fase 1): `tests/test_features.py` (orden/longitud vector) + `tests/test_app_features.py` (h2h/form reales, mismo jugador, `tourney_level` default, jugadores desconocidos). Falta: test del endpoint `/api/predict` vía test_client (superficie inválida, 400s) y determinismo de simetrización.
 
 ### Viz
-- [ ] **I10 · Faltan 3 plots clave:** curva de calibración (reliability diagram), learning curve, histograma de probas predichas.
+- [x] **I10 · Faltan 3 plots clave:** ✅ Resuelto. `graficar_reliability_diagram` e `graficar_histograma_probas` añadidas a `src/evaluate.py`; `graficar_learning_curve` ya existía. Las 3 se invocan desde `main.py`. 8 tests en `tests/test_evaluate.py`.
 - [ ] **N1 · Notebook didáctico** (`notebooks/atp_resumen.ipynb`) que resuma los puntos importantes del proyecto **sin tocar la parte web**: matemática del ELO híbrido (logística + actualización), simetrización del dataset (anti-leakage), las 6 features, CV temporal con embargo, y la lectura honesta de métricas (AUC/log-loss/Brier vs accuracy + learning curve). Objetivo portafolio/aprendizaje: narrativa + celdas ejecutables reusando `src/`.
 - [ ] **N2 · Actualizar los visuales de la web** (`templates/index.html`, `static/style.css`, `static/script.js`): refrescar el diseño/estética de la SPA y mostrar las nuevas señales ya disponibles en la API (`diff_h2h`, `diff_form`, `tourney_level_num` en `features_debug`) que hoy el frontend no pinta.
 

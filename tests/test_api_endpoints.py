@@ -144,3 +144,33 @@ def test_predict_all_requiere_player_a_y_b(client):
 def test_predict_all_rechaza_superficie_invalida(client):
     r = client.get('/api/predict_all?player_a=A&player_b=B&surface=Tierra')
     assert r.status_code == 400
+
+
+# ── GET /api/predict — validaciones básicas (G3) ────────────────────────────
+
+def test_predict_superficie_invalida_devuelve_400(client):
+    r = client.get('/api/predict?player_a=A&player_b=B&surface=Tierra')
+    assert r.status_code == 400
+
+
+def test_predict_sin_player_a_devuelve_400(client):
+    r = client.get('/api/predict?player_b=B&surface=Hard')
+    assert r.status_code == 400
+
+
+def test_predict_sin_player_b_devuelve_400(client):
+    r = client.get('/api/predict?player_a=A&surface=Hard')
+    assert r.status_code == 400
+
+
+def test_predict_mismo_jugador_devuelve_400(client):
+    r = client.get('/api/predict?player_a=A&player_b=A&surface=Hard')
+    assert r.status_code == 400
+
+
+def test_predict_jugador_desconocido_devuelve_200_con_defaults(client):
+    r = client.get('/api/predict?player_a=A&player_b=Desconocido&surface=Hard')
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data['player_b']['name'] == 'Desconocido'
+    assert data['player_b']['rank'] == 'Sin Ranking'
