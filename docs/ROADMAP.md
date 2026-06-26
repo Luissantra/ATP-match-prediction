@@ -17,7 +17,12 @@
 7. **⏸ E4 · Frontend multi-modelo** — diferido hasta rediseño UI (N2).
 8. **⏸ E5 · Ensemble soft-voting** — diferido junto a E4.
 9. **▶️ N2 · Rediseño UI** — en espera de propuesta visual del usuario. Luego G1 (dropdown `tourney_level`).
-10. **M4 (SHAP), N1 (notebook), M1/M3/M5** — siguiente tanda.
+10. **✅ M1 · ELO sin redondeo acumulado** — hecho. `actualizar_ratings` full-precision.
+11. **✅ M3 · `custom_tree.py` → `archive/`** — hecho.
+12. **✅ M5 · `test_label_balanced` exacto** — seed=42 fijo, assert 0.47.
+13. **✅ I5 · Jugador desconocido → `"unknown": true`** — hecho. 2 tests nuevos.
+14. **✅ I6 · Validar columnas CSV** — hecho. `ValueError` descriptivo. 2 tests nuevos.
+15. **▶️ M4 (SHAP), N1 (notebook)** — siguiente tanda.
 
 Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar este roadmap al cerrar.
 
@@ -59,8 +64,8 @@ Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar e
 
 ### Producción
 - [~] **I4 · Pickle inseguro + riesgo de versión sklearn.** Versión: ✅ se guarda (Fase 1) y se **valida al cargar** (Fase 4, G2). Pendiente solo lo de seguridad: evaluar `skops` para carga sin ejecución de código arbitrario (riesgo bajo con artefactos propios).
-- [ ] **I5 · Jugador desconocido cae a defaults silenciosos** (1500/999/26). Marcar `"unknown": true` en la respuesta y avisar en UI.
-- [ ] **I6 · CSV con columnas faltantes → `KeyError` crudo** (`src/elo.py:163`). Validar columnas requeridas por archivo con error claro.
+- [x] **I5 · Jugador desconocido cae a defaults silenciosos** ✅ Resuelto. `"unknown": true/false` en cada jugador de la respuesta API.
+- [x] **I6 · CSV con columnas faltantes → `KeyError` crudo** ✅ Resuelto. `ValueError` descriptivo con lista de columnas ausentes.
 
 ### Código
 - [x] **I7 · Lógica ELO híbrido duplicada 3×** ✅ Resuelto (Fase 1). `elo_hibrido()` única en `src/features.py`, usada por `elo.py` y `app.py`. `LEVEL_MAP` también centralizado allí.
@@ -75,11 +80,11 @@ Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar e
 ---
 
 ## P2 — Menores
-- [ ] **M1 · `actualizar_ratings` redondea a 1 decimal en cada update** (`elo.py:95`) → error acumulado sobre miles de partidos. Redondear solo al exportar.
+- [x] **M1 · `actualizar_ratings` redondea a 1 decimal en cada update** ✅ Resuelto. Full-precision en updates; redondear solo al mostrar.
 - [x] **M2 · `/api/predict` no valida `player_a == player_b`.** ✅ Resuelto (Fase 1): devuelve 400.
-- [ ] **M3 · `custom_tree.py` no se usa en el pipeline.** Mover a `archive/` si es legado.
+- [x] **M3 · `custom_tree.py` no se usa en el pipeline.** ✅ Movido a `archive/`.
 - [ ] **M4 · Feature importance Gini engaña con features correladas** (diff_elo/diff_rank). Añadir `permutation_importance` o **SHAP** (también habilita explicación por-predicción en la UI).
-- [ ] **M5 · `test_label_balanced` flojo** (`0.4<ratio<0.6`). Seed fijo + assert exacto.
+- [x] **M5 · `test_label_balanced` flojo** ✅ Resuelto. Assert exacto `ratio == 0.47` (seed=42, 100 filas).
 
 ---
 

@@ -174,3 +174,17 @@ def test_predict_jugador_desconocido_devuelve_200_con_defaults(client):
     data = r.get_json()
     assert data['player_b']['name'] == 'Desconocido'
     assert data['player_b']['rank'] == 'Sin Ranking'
+
+
+def test_predict_jugador_desconocido_tiene_unknown_true(client):
+    r = client.get('/api/predict?player_a=A&player_b=Desconocido&surface=Hard')
+    data = r.get_json()
+    assert data['player_b']['unknown'] is True
+    assert data['player_a']['unknown'] is False
+
+
+def test_predict_ambos_conocidos_no_tienen_unknown(client):
+    r = client.get('/api/predict?player_a=A&player_b=B&surface=Hard')
+    data = r.get_json()
+    assert data['player_a']['unknown'] is False
+    assert data['player_b']['unknown'] is False

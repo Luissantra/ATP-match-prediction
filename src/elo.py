@@ -79,22 +79,23 @@ def actualizar_ratings(rating_A, rating_B, resultado_A, K=32):
     Returns
     -------
     tuple of float
-        Nuevos ratings redondeados a un decimal: (nuevo_rating_A, nuevo_rating_B).
+        Nuevos ratings full-precision: (nuevo_rating_A, nuevo_rating_B).
+        No se redondea aquí para evitar error acumulado; redondear solo al exportar.
     """
     # 1. Calcular expectativa de A
     e_A = calcular_expectativa(rating_A, rating_B)
-    
+
     # 2. La expectativa de B es el complemento de A (ya que es un juego de suma cero)
     e_B = 1 - e_A
-    
+
     # 3. Resultado real para B (es el opuesto al de A)
     resultado_B = 1 - resultado_A
-    
+
     # 4. Calcular nuevos ratings aplicando la fórmula de Arpad Elo
     nuevo_rating_A = rating_A + K * (resultado_A - e_A)
     nuevo_rating_B = rating_B + K * (resultado_B - e_B)
-    
-    return round(nuevo_rating_A, 1), round(nuevo_rating_B, 1)
+
+    return nuevo_rating_A, nuevo_rating_B
 
 def calcular_elos_historicos(data_dir, años):
     """
@@ -147,8 +148,13 @@ def calcular_elos_historicos(data_dir, años):
             
     if not lista_dfs:
         raise FileNotFoundError(f"No se encontraron archivos CSV para los años {años} en el directorio '{data_dir}'.")
-        
+
     df_completo = pd.concat(lista_dfs, ignore_index=True)
+
+    COLUMNAS_REQUERIDAS = ['tourney_date', 'match_num', 'winner_name', 'loser_name', 'surface']
+    faltantes = [c for c in COLUMNAS_REQUERIDAS if c not in df_completo.columns]
+    if faltantes:
+        raise ValueError(f"CSV incompleto — columnas requeridas ausentes: {', '.join(faltantes)}")
     
     # 2. Ordenar cronológicamente para evitar fuga de información hacia el pasado (data leakage)
     df_completo = df_completo.sort_values(by=['tourney_date', 'match_num']).reset_index(drop=True)

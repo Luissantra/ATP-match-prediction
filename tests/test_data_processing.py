@@ -156,4 +156,5 @@ def test_label_balanced():
     df = pd.DataFrame(rows)
     result = preparar_datos_entrenamiento(df)
     ratio = result['label'].mean()
-    assert 0.4 < ratio < 0.6
+    # seed=42 fijo en preparar_datos_entrenamiento → resultado determinista: 47/100
+    assert ratio == 0.47
