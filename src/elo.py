@@ -270,28 +270,16 @@ def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True)
         
         # --- Actualizar ELO con MOV + K-schedule ---
         score_str = str(row.get('score', '')) if 'score' in row.index else ''
-        if use_mov:
-            w_sets, l_sets = _extraer_sets(score_str)
-            mov = _mov_factor(w_sets, l_sets)
-        else:
-            mov = 1.0
-
+        mov = _mov_factor(*_extraer_sets(score_str)) if use_mov else 1.0
         K_g = _k_for_player(n_partidos.get(ganador, 0)) if use_k_schedule else 32
         K_p = _k_for_player(n_partidos.get(perdedor, 0)) if use_k_schedule else 32
 
-        if use_mov or use_k_schedule:
-            # General
-            e_g = calcular_expectativa(g_general, p_general)
-            nuevo_g_gen = g_general + K_g * mov * (1 - e_g)
-            nuevo_p_gen = p_general + K_p * mov * (0 - (1 - e_g))
-            # Superficie
-            e_g_sup = calcular_expectativa(g_superficie, p_superficie)
-            nuevo_g_sup = g_superficie + K_g * mov * (1 - e_g_sup)
-            nuevo_p_sup = p_superficie + K_p * mov * (0 - (1 - e_g_sup))
-        else:
-            # Legacy: usa actualizar_ratings con K=32 simétrico para reproducir comportamiento anterior
-            nuevo_g_gen, nuevo_p_gen = actualizar_ratings(g_general, p_general, resultado_A=1)
-            nuevo_g_sup, nuevo_p_sup = actualizar_ratings(g_superficie, p_superficie, resultado_A=1)
+        e_g = calcular_expectativa(g_general, p_general)
+        nuevo_g_gen = g_general + K_g * mov * (1 - e_g)
+        nuevo_p_gen = p_general + K_p * mov * (0 - (1 - e_g))
+        e_g_sup = calcular_expectativa(g_superficie, p_superficie)
+        nuevo_g_sup = g_superficie + K_g * mov * (1 - e_g_sup)
+        nuevo_p_sup = p_superficie + K_p * mov * (0 - (1 - e_g_sup))
 
         elo_general[ganador] = nuevo_g_gen
         elo_general[perdedor] = nuevo_p_gen

@@ -106,14 +106,17 @@ def entrenar_todos_los_modelos(X, y, dates=None, embargo_days=7):
 
     Returns
     -------
-    dict {nombre: modelo_calibrado}
+    (modelos_calibrados, base_estimators) — dicts {nombre: modelo}.
+    base_estimators permite graficar importancia sin recalcular el grid search.
     """
     if dates is not None:
         cv = list(purged_time_series_splits(dates, n_splits=5, embargo_days=embargo_days))
     else:
         cv = TimeSeriesSplit(n_splits=5)
 
-    modelos = {}
+    modelos_calibrados = {}
+    base_estimators = {}
+    cv_scores = {}
     for nombre, estimador, param_grid in _DEFINICIONES_MODELOS:
         print(f"\n  [{nombre}] GridSearchCV...")
         gs = GridSearchCV(
@@ -125,8 +128,11 @@ def entrenar_todos_los_modelos(X, y, dates=None, embargo_days=7):
             verbose=0,
         )
         gs.fit(X, y)
-        print(f"    best_params={gs.best_params_}  cv_log_loss={-gs.best_score_:.4f}")
-        modelos[nombre] = calibrar_modelo(gs.best_estimator_, X, y,
-                                          dates=dates, embargo_days=embargo_days)
+        cv_log_loss = -gs.best_score_
+        print(f"    best_params={gs.best_params_}  cv_log_loss={cv_log_loss:.4f}")
+        base_estimators[nombre] = gs.best_estimator_
+        cv_scores[nombre] = cv_log_loss
+        modelos_calibrados[nombre] = calibrar_modelo(gs.best_estimator_, X, y,
+                                                     dates=dates, embargo_days=embargo_days)
 
-    return modelos
+    return modelos_calibrados, base_estimators, cv_scores

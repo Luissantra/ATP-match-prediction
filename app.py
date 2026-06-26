@@ -39,8 +39,6 @@ def cargar_modelo():
     global modelo, todos_modelos, metrics_todos
     global elo_general, elo_superficie, stats_jugadores, h2h, form_final
     try:
-        with open("modelo_atp.pkl", "rb") as f:
-            modelo = pickle.load(f)
         with open("stats_jugadores.pkl", "rb") as f:
             metadata = pickle.load(f)
         elo_general = metadata['elo_general']
@@ -52,17 +50,12 @@ def cargar_modelo():
         if aviso:
             print(aviso)
 
-        # Multi-modelo: carga opcional (no bloquea si no existe)
-        try:
-            with open("modelos_atp.pkl", "rb") as f:
-                todos_modelos = pickle.load(f)
-            with open("metrics_atp.pkl", "rb") as f:
-                metrics_todos = pickle.load(f)
-            print(f"Multi-modelo cargado: {list(todos_modelos.keys())}")
-        except FileNotFoundError:
-            print("modelos_atp.pkl no encontrado — solo modelo principal disponible.")
-
-        print("Modelo y estadísticas cargados.")
+        with open("modelos_atp.pkl", "rb") as f:
+            todos_modelos = pickle.load(f)
+        with open("metrics_atp.pkl", "rb") as f:
+            metrics_todos = pickle.load(f)
+        modelo = todos_modelos['gbm']
+        print(f"Modelos cargados: {list(todos_modelos.keys())}")
         return True
     except Exception as e:
         print(f"Advertencia: no se pudieron cargar los pkl: {e}")
@@ -284,15 +277,11 @@ def predict_all():
     predictions = {}
     for nombre, m in modelos_a_usar.items():
         try:
-            feat = construir_features(player_a, player_b, surface, tourney_level)
-            features = pd.DataFrame([vector_from_features(feat)], columns=FEATURES)
-            probs = m.predict_proba(features)[0]
-            prob_a = round(float(probs[1]) * 100, 1)
-            prob_b = round(float(probs[0]) * 100, 1)
+            res = _predecir_con(m, player_a, player_b, surface, tourney_level)
             predictions[nombre] = {
-                'prob_a': prob_a,
-                'prob_b': prob_b,
-                'predicted_winner': player_a if prob_a > prob_b else player_b,
+                'prob_a': res['player_a']['prob_victory'],
+                'prob_b': res['player_b']['prob_victory'],
+                'predicted_winner': res['predicted_winner'],
             }
         except Exception as e:
             predictions[nombre] = {'error': str(e)}
