@@ -4,7 +4,7 @@ import pandas as pd
 from src.elo import calcular_elos_historicos
 from src.data_processing import preparar_datos_entrenamiento
 from src.features import FEATURES
-from src.train import entrenar_modelo, calibrar_modelo, entrenar_todos_los_modelos
+from src.train import entrenar_modelo, calibrar_modelo, comparar_calibracion, entrenar_todos_los_modelos
 from src.evaluate import (
     evaluar, evaluar_con_ic, evaluar_baseline_elo, evaluar_y_graficar,
     graficar_learning_curve, graficar_reliability_diagram, graficar_histograma_probas,
@@ -49,6 +49,18 @@ if __name__ == "__main__":
     modelo = todos_modelos['gbm']
     # Modelo base sin calibrar para plots de importancia de features
     modelo_base_gbm = entrenar_modelo(X_train, y_train, dates=dates_train)
+
+    # Q4: Elegir calibración óptima para GBM (sigmoid vs isotonic)
+    print("\n[3b/5] Comparando calibración sigmoid vs isotonic (GBM)...")
+    from src.train import comparar_calibracion, calibrar_modelo
+    res_cal = comparar_calibracion(modelo_base_gbm, X_train_arr, y_train_arr, dates=dates_train)
+    print(f"  sigmoid log-loss={res_cal['sigmoid_log_loss']:.4f}  "
+          f"isotonic log-loss={res_cal['isotonic_log_loss']:.4f}  → mejor: {res_cal['mejor']}")
+    if res_cal['mejor'] == 'sigmoid':
+        todos_modelos['gbm'] = calibrar_modelo(modelo_base_gbm, X_train_arr, y_train_arr,
+                                               dates=dates_train, method='sigmoid')
+        modelo = todos_modelos['gbm']
+        print("  GBM recalibrado con sigmoid.")
 
     # 4. Evaluar y graficar (GBM calibrado)
     print("\n[4/5] Evaluando y generando gráficos...")
