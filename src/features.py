@@ -9,7 +9,14 @@ con otra distinta (orden de columnas, pesos del ELO híbrido, defaults, etc.).
 """
 
 # Orden canónico de las features que consume el modelo. NO reordenar sin reentrenar.
-FEATURES = ['diff_elo', 'diff_rank', 'diff_age', 'diff_h2h', 'diff_form', 'tourney_level_num']
+FEATURES = [
+    'diff_elo_general', 'diff_elo_sup',   # I3: GBM aprende el peso óptimo (antes 50/50 fijo)
+    'diff_rank', 'is_unranked',            # I2: rank capeado a 250 + indicador wildcard/qualifier
+    'diff_age', 'diff_h2h', 'diff_form', 'tourney_level_num',
+]
+
+# Ranking máximo considerado. Por encima de este umbral el jugador se considera sin ranking.
+RANK_CAP = 250
 
 # Codificación ordinal del nivel de torneo (mayor = más importante).
 LEVEL_MAP = {
@@ -27,7 +34,7 @@ DEFAULT_LEVEL_NUM = 1
 
 
 def elo_hibrido(elo_general, elo_superficie, w=0.5):
-    """ELO híbrido: w*general + (1-w)*superficie. Fuente única (antes duplicado 3×)."""
+    """ELO híbrido: w*general + (1-w)*superficie. Se sigue usando en elo.py para actualizar ratings."""
     return w * elo_general + (1 - w) * elo_superficie
 
 

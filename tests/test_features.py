@@ -1,10 +1,9 @@
 import sys
 import os
-
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from src.features import FEATURES, elo_hibrido, vector_from_features
+from src.features import FEATURES, RANK_CAP, elo_hibrido, vector_from_features
 
 
 class TestEloHibrido:
@@ -21,8 +20,10 @@ class TestEloHibrido:
 class TestVectorFromFeatures:
     def _feat(self):
         return {
-            'diff_elo': 50.0, 'diff_rank': -5.0, 'diff_age': 2.0,
-            'diff_h2h': 0.3, 'diff_form': 0.1, 'tourney_level_num': 4,
+            'diff_elo_general': 100.0, 'diff_elo_sup': 200.0,
+            'diff_rank': -5.0, 'is_unranked': 0,
+            'diff_age': 2.0, 'diff_h2h': 0.3,
+            'diff_form': 0.1, 'tourney_level_num': 4,
         }
 
     def test_orden_coincide_con_FEATURES(self):
@@ -38,3 +39,9 @@ class TestVectorFromFeatures:
         del feat['diff_h2h']
         with pytest.raises(KeyError):
             vector_from_features(feat)
+
+    def test_features_tiene_8_elementos(self):
+        assert len(FEATURES) == 8
+
+    def test_rank_cap_es_250(self):
+        assert RANK_CAP == 250
