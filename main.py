@@ -6,8 +6,8 @@ from src.data_processing import preparar_datos_entrenamiento
 from src.features import FEATURES
 from src.train import entrenar_modelo, calibrar_modelo, entrenar_todos_los_modelos
 from src.evaluate import (
-    evaluar, evaluar_y_graficar, graficar_learning_curve,
-    graficar_reliability_diagram, graficar_histograma_probas,
+    evaluar, evaluar_con_ic, evaluar_baseline_elo, evaluar_y_graficar,
+    graficar_learning_curve, graficar_reliability_diagram, graficar_histograma_probas,
 )
 from src.cv import purged_time_series_splits
 
@@ -50,14 +50,6 @@ if __name__ == "__main__":
     # Modelo base sin calibrar para plots de importancia de features
     modelo_base_gbm = entrenar_modelo(X_train, y_train, dates=dates_train)
 
-    print("\n      Métricas test ciego por modelo:")
-    metrics_all = {}
-    for nombre, m in todos_modelos.items():
-        met = evaluar(m, X_test, y_test)
-        metrics_all[nombre] = met
-        print(f"        {nombre:<14} log-loss={met['log_loss']:.4f}  "
-              f"brier={met['brier']:.4f}  auc={met['auc']:.4f}")
-
     # 4. Evaluar y graficar (GBM calibrado)
     print("\n[4/5] Evaluando y generando gráficos...")
     evaluar_y_graficar(modelo, X_test, y_test, df_test, FEATURES,
@@ -66,6 +58,21 @@ if __name__ == "__main__":
     graficar_learning_curve(modelo_base_gbm, X_train, y_train, cv_splits)
     graficar_reliability_diagram(modelo, X_test, y_test)
     graficar_histograma_probas(modelo, X_test, y_test)
+
+    print("\n[4b/5] Baseline ELO-crudo vs ML (¿aporta el stack?)...")
+    met_baseline = evaluar_baseline_elo(df_test, y_test)
+    print(f"  BASELINE ELO-crudo:")
+    print(f"    log-loss={met_baseline['log_loss']:.4f} [{met_baseline['log_loss_ic']['lower']:.4f}–{met_baseline['log_loss_ic']['upper']:.4f}]")
+    print(f"    AUC     ={met_baseline['auc']:.4f} [{met_baseline['auc_ic']['lower']:.4f}–{met_baseline['auc_ic']['upper']:.4f}]")
+
+    print("\n  MODELOS ML (con IC95% bootstrap, n≈137 → ±0.08-0.09 en AUC):")
+    metrics_all = {}
+    for nombre, m in todos_modelos.items():
+        met_ic = evaluar_con_ic(m, X_test, y_test)
+        metrics_all[nombre] = {k: v for k, v in met_ic.items() if k in ('accuracy', 'log_loss', 'brier', 'auc')}
+        print(f"    {nombre:<14} log-loss={met_ic['log_loss']:.4f} [{met_ic['log_loss_ic']['lower']:.4f}–{met_ic['log_loss_ic']['upper']:.4f}]  "
+              f"AUC={met_ic['auc']:.4f} [{met_ic['auc_ic']['lower']:.4f}–{met_ic['auc_ic']['upper']:.4f}]")
+    print("  Nota: diferencias < 0.08 en AUC son ruido estadístico con n≈137.")
 
     # 5. Exportar artefactos
     print("\n[5/5] Exportando artefactos...")

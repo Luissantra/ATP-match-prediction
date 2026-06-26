@@ -133,3 +133,31 @@ def test_evaluar_con_ic_has_ic_keys():
     m = evaluar_con_ic(modelo, X, y, n_iter=50, seed=42)
     assert 'auc_ic' in m and 'log_loss_ic' in m and 'brier_ic' in m
     assert set(m['auc_ic'].keys()) == {'mean', 'lower', 'upper'}
+
+
+# --- Tests Q1: evaluar_baseline_elo ---
+
+import pandas as pd
+from src.evaluate import evaluar_baseline_elo
+
+
+def test_baseline_elo_devuelve_metricas():
+    rng = np.random.default_rng(1)
+    n = 100
+    diff_elo = rng.uniform(-400, 400, size=n)
+    # probabilidad ELO cruda
+    proba_elo = 1 / (1 + 10 ** (-diff_elo / 400))
+    # simular resultados sesgados por el ELO
+    y = (rng.uniform(size=n) < proba_elo).astype(int)
+    df = pd.DataFrame({'diff_elo_general': diff_elo})
+    met = evaluar_baseline_elo(df, y, n_iter=50)
+    assert set(met.keys()) >= {'accuracy', 'log_loss', 'brier', 'auc', 'auc_ic', 'log_loss_ic'}
+    assert 0.0 < met['log_loss'] < 1.0
+    assert 0.5 <= met['auc'] <= 1.0
+
+
+def test_baseline_elo_requiere_columna():
+    import pytest
+    df = pd.DataFrame({'other_col': [1, 2, 3]})
+    with pytest.raises(KeyError):
+        evaluar_baseline_elo(df, [0, 1, 0])

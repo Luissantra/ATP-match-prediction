@@ -77,6 +77,29 @@ def evaluar_con_ic(modelo, X, y, n_iter=1000, seed=42):
     return base
 
 
+def evaluar_baseline_elo(df_test, y_true, n_iter=1000, seed=42):
+    """
+    Baseline obligatorio: ¿cuánto aporta el ML sobre ELO-crudo solo?
+    Usa calcular_expectativa(diff_elo_general) como predictor único.
+    Referencia: si log-loss/AUC del baseline ≈ modelo → el stack ML no añade valor.
+    """
+    from src.elo import calcular_expectativa
+    diff = df_test['diff_elo_general'].values
+    proba_baseline = np.array([calcular_expectativa(d, 0) for d in diff])
+    y_arr = np.asarray(y_true)
+    preds = (proba_baseline >= 0.5).astype(int)
+    met = {
+        'accuracy': float(accuracy_score(y_arr, preds)),
+        'log_loss': float(log_loss(y_arr, proba_baseline, labels=[0, 1])),
+        'brier':    float(brier_score_loss(y_arr, proba_baseline)),
+        'auc':      float(roc_auc_score(y_arr, proba_baseline)),
+    }
+    met['auc_ic']      = bootstrap_ic95(y_arr, proba_baseline, 'auc',      n_iter, seed)
+    met['log_loss_ic'] = bootstrap_ic95(y_arr, proba_baseline, 'log_loss', n_iter, seed)
+    met['brier_ic']    = bootstrap_ic95(y_arr, proba_baseline, 'brier',    n_iter, seed)
+    return met
+
+
 def evaluar_y_graficar(modelo, X_test, y_test, df_test, features,
                        modelo_para_importancia=None):
     preds = modelo.predict(X_test)
