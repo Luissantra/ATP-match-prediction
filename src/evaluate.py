@@ -5,6 +5,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.base import clone
+from sklearn.calibration import calibration_curve
 from sklearn.model_selection import learning_curve
 from sklearn.metrics import (
     accuracy_score, classification_report, confusion_matrix,
@@ -82,6 +83,55 @@ def graficar_learning_curve(modelo, X_train, y_train, cv):
     sns.despine()
     plt.tight_layout()
     plt.savefig("plots/learning_curve.png", dpi=300)
+    plt.close()
+
+
+def graficar_reliability_diagram(modelo, X, y, n_bins=10):
+    """
+    Muestra si las probabilidades predichas son honestas: si el modelo dice 70%,
+    ¿gana el jugador A ~70% de las veces en el test? Una diagonal perfecta = calibración perfecta.
+    """
+    proba = modelo.predict_proba(X)[:, 1]
+    prob_true, prob_pred = calibration_curve(y, proba, n_bins=n_bins, strategy='uniform')
+
+    os.makedirs("plots", exist_ok=True)
+    plt.figure(figsize=(7, 6))
+    plt.plot(prob_pred, prob_true, 'o-', color="#2980b9", linewidth=2, label="Modelo calibrado")
+    plt.plot([0, 1], [0, 1], '--', color="#7f8c8d", alpha=0.7, label="Calibración perfecta")
+    plt.title("Reliability Diagram (Calibración)\n¿Las probabilidades predichas son honestas?",
+              fontsize=12, pad=15, weight='bold')
+    plt.xlabel("Probabilidad predicha", fontsize=11)
+    plt.ylabel("Fracción de positivos reales", fontsize=11)
+    plt.legend(frameon=True, facecolor='white', edgecolor='none')
+    sns.despine()
+    plt.tight_layout()
+    plt.savefig("plots/reliability_diagram.png", dpi=300)
+    plt.close()
+
+
+def graficar_histograma_probas(modelo, X, y, bins=20):
+    """
+    Distribución de las probabilidades predichas por clase.
+    Un modelo discriminativo separa bien las dos distribuciones (poca superposición).
+    """
+    proba = modelo.predict_proba(X)[:, 1]
+    y_arr = np.asarray(y)
+
+    os.makedirs("plots", exist_ok=True)
+    plt.figure(figsize=(8, 5))
+    plt.hist(proba[y_arr == 0], bins=bins, alpha=0.6, color="#c0392b",
+             label="Clase 0 (derrota A)", edgecolor='none')
+    plt.hist(proba[y_arr == 1], bins=bins, alpha=0.6, color="#27ae60",
+             label="Clase 1 (victoria A)", edgecolor='none')
+    plt.axvline(0.5, color='#7f8c8d', linestyle='--', alpha=0.7, label='Umbral 0.5')
+    plt.title("Distribución de Probabilidades Predichas\n¿Separa el modelo las dos clases?",
+              fontsize=12, pad=15, weight='bold')
+    plt.xlabel("P(victoria jugador A)", fontsize=11)
+    plt.ylabel("Frecuencia", fontsize=11)
+    plt.legend(frameon=True, facecolor='white', edgecolor='none')
+    sns.despine()
+    plt.tight_layout()
+    plt.savefig("plots/histograma_probas.png", dpi=300)
     plt.close()
 
 
