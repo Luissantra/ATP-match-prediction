@@ -35,7 +35,7 @@ import numpy as np
 
 from src.features import LEVEL_MAP, RANK_CAP  # fuente única; re-exportado para compatibilidad
 
-def preparar_datos_entrenamiento(df_con_elo):
+def preparar_datos_entrenamiento(df_con_elo, seed=42):
     """
     Realiza la imputación estadística y la simetrización de características
     para preparar el dataset de entrenamiento y test del modelo.
@@ -71,8 +71,8 @@ def preparar_datos_entrenamiento(df_con_elo):
     df['loser_age'] = df['loser_age'].fillna(mediana_loser_age)
     
     # 3. Crear máscara aleatoria de simetrización
-    np.random.seed(42)  # Semilla fija para reproducibilidad científica
-    shuffle = np.random.rand(len(df)) > 0.5
+    rng = np.random.default_rng(seed)
+    shuffle = rng.random(len(df)) > 0.5
 
     # 4. Simetrización vectorizada: A = ganador si shuffle, A = perdedor si no
 
@@ -111,7 +111,7 @@ def preparar_datos_entrenamiento(df_con_elo):
         'label':            np.where(shuffle, 1, 0),
     })
 
-def crear_dataset_visual(filepath):
+def crear_dataset_visual(filepath, seed=42):
     """
     Carga un archivo anual individual y genera variables simétricas enriquecidas,
     incluyendo la altura (height) de los jugadores para el análisis exploratorio visual (EDA).
@@ -139,8 +139,8 @@ def crear_dataset_visual(filepath):
     df['winner_age'] = df['winner_age'].fillna(df['winner_age'].median() if not df['winner_age'].isnull().all() else 26.0)
     df['loser_age'] = df['loser_age'].fillna(df['loser_age'].median() if not df['loser_age'].isnull().all() else 26.0)
     
-    np.random.seed(42)
-    shuffle_mask = np.random.rand(len(df)) > 0.5
+    rng = np.random.default_rng(seed)
+    shuffle_mask = rng.random(len(df)) > 0.5
     
     features = []
     for i in range(len(df)):

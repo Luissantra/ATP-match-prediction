@@ -128,3 +128,53 @@ def test_devuelve_h2h_y_form_finales(tmp_path):
     assert form_final['A'] == pytest.approx(1.0)
     assert form_final['B'] == pytest.approx(1 / 3)
     assert form_final['C'] == pytest.approx(0.0)
+
+
+def test_mov_sube_elo_mas_en_straight_sets(tmp_path):
+    """2-0 debe mover el ELO más que 2-1."""
+    df_straight = pd.DataFrame([{
+        'tourney_date': 20240101, 'match_num': 1,
+        'winner_name': 'A', 'loser_name': 'B', 'surface': 'Hard',
+        'winner_rank': 10, 'loser_rank': 20, 'winner_age': 25.0, 'loser_age': 27.0,
+        'tourney_level': '250', 'score': '6-3 6-2',
+    }])
+    df_deciding = df_straight.copy()
+    df_deciding.loc[0, 'score'] = '4-6 7-5 6-3'
+
+    df_straight.to_csv(tmp_path / "2024.csv", index=False)
+    _, elo_s, *_ = calcular_elos_historicos(str(tmp_path), [2024], use_mov=True)
+    (tmp_path / "2024.csv").write_text(df_deciding.to_csv(index=False))
+    _, elo_d, *_ = calcular_elos_historicos(str(tmp_path), [2024], use_mov=True)
+    # Ganador debe tener ELO mayor en straight sets
+    assert elo_s['A'] > elo_d['A']
+
+
+def test_k_schedule_debutante_mayor_cambio(tmp_path):
+    """Debutante con K=48 debe cambiar más el ELO que un veterano con K=32."""
+    df = pd.DataFrame([{
+        'tourney_date': 20240101, 'match_num': 1,
+        'winner_name': 'NUEVO', 'loser_name': 'NUEVO2', 'surface': 'Hard',
+        'winner_rank': 100, 'loser_rank': 101, 'winner_age': 22.0, 'loser_age': 22.0,
+        'tourney_level': '250', 'score': '6-4 6-4',
+    }])
+    df.to_csv(tmp_path / "2024.csv", index=False)
+    _, elo_k, *_ = calcular_elos_historicos(str(tmp_path), [2024], use_k_schedule=True)
+    _, elo_nok, *_ = calcular_elos_historicos(str(tmp_path), [2024], use_k_schedule=False)
+    # Con K=48, el ganador debutante debe ganar más ELO que con K=32
+    assert elo_k['NUEVO'] > elo_nok['NUEVO']
+
+
+def test_sin_mov_sin_k_igual_que_antes(tmp_path):
+    """use_mov=False + use_k_schedule=False debe reproducir el comportamiento anterior."""
+    df = pd.DataFrame([{
+        'tourney_date': 20240101, 'match_num': 1,
+        'winner_name': 'A', 'loser_name': 'B', 'surface': 'Hard',
+        'winner_rank': 10, 'loser_rank': 20, 'winner_age': 25.0, 'loser_age': 27.0,
+        'tourney_level': 'G', 'score': '6-3 6-2',
+    }])
+    df.to_csv(tmp_path / "2024.csv", index=False)
+    from src.elo import actualizar_ratings, calcular_expectativa
+    _, elo_legacy, *_ = calcular_elos_historicos(str(tmp_path), [2024], use_mov=False, use_k_schedule=False)
+    e_A = calcular_expectativa(1500.0, 1500.0)
+    nuevo_A, _ = actualizar_ratings(1500.0, 1500.0, resultado_A=1, K=32)
+    assert abs(elo_legacy['A'] - nuevo_A) < 1e-6

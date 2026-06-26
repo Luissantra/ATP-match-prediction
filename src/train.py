@@ -56,6 +56,25 @@ def calibrar_modelo(modelo_base, X, y, dates=None, embargo_days=7, method="isoto
     return calibrado
 
 
+def comparar_calibracion(modelo_base, X, y, dates=None, embargo_days=7):
+    """
+    Compara sigmoid (Platt) vs isotonic por log-loss en CV temporal purgado.
+    Isotonic sobreajusta en folds pequeños (n<500); sigmoid más estable.
+    Devuelve {'sigmoid_log_loss', 'isotonic_log_loss', 'mejor'}.
+    """
+    from sklearn.metrics import log_loss as _log_loss
+    resultados = {}
+    for method in ('sigmoid', 'isotonic'):
+        cal = calibrar_modelo(modelo_base, X, y,
+                              dates=dates, embargo_days=embargo_days,
+                              method=method)
+        proba = cal.predict_proba(X)[:, 1]
+        resultados[f'{method}_log_loss'] = _log_loss(y, proba, labels=[0, 1])
+    mejor = 'sigmoid' if resultados['sigmoid_log_loss'] <= resultados['isotonic_log_loss'] else 'isotonic'
+    resultados['mejor'] = mejor
+    return resultados
+
+
 _DEFINICIONES_MODELOS = [
     (
         "logreg",

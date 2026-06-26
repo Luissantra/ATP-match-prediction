@@ -92,3 +92,31 @@ def test_calibrar_modelo_method_sigmoid():
     cal = calibrar_modelo(base, X_tr, y_tr, method="sigmoid")
     proba = cal.predict_proba(X_h)
     assert np.all(proba >= 0.0) and np.all(proba <= 1.0)
+
+
+from src.train import comparar_calibracion
+
+def test_comparar_calibracion_devuelve_mejor():
+    import numpy as np
+    from sklearn.ensemble import GradientBoostingClassifier
+    rng = np.random.default_rng(7)
+    X = rng.standard_normal((200, 3))
+    y = (X[:, 0] + rng.standard_normal(200) * 0.5 > 0).astype(int)
+    modelo = GradientBoostingClassifier(n_estimators=10, random_state=42).fit(X, y)
+    res = comparar_calibracion(modelo, X, y)
+    assert set(res.keys()) == {'sigmoid_log_loss', 'isotonic_log_loss', 'mejor'}
+    assert res['mejor'] in ('sigmoid', 'isotonic')
+    assert res['sigmoid_log_loss'] > 0 and res['isotonic_log_loss'] > 0
+
+def test_comparar_calibracion_mejor_es_menor_log_loss():
+    import numpy as np
+    from sklearn.ensemble import GradientBoostingClassifier
+    rng = np.random.default_rng(99)
+    X = rng.standard_normal((200, 3))
+    y = (X[:, 0] > 0).astype(int)
+    modelo = GradientBoostingClassifier(n_estimators=10, random_state=42).fit(X, y)
+    res = comparar_calibracion(modelo, X, y)
+    if res['mejor'] == 'sigmoid':
+        assert res['sigmoid_log_loss'] <= res['isotonic_log_loss']
+    else:
+        assert res['isotonic_log_loss'] <= res['sigmoid_log_loss']

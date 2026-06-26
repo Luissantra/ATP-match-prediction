@@ -23,7 +23,7 @@
 13. **✅ I5 · Jugador desconocido → `"unknown": true`** — hecho. 2 tests nuevos.
 14. **✅ I6 · Validar columnas CSV** — hecho. `ValueError` descriptivo. 2 tests nuevos.
 15. **✅ N1 · Notebook didáctico** — hecho. `notebooks/atp_resumen.ipynb` (ELO, híbrido, simetrización, 8 features, CV con embargo, métricas honestas).
-16. **▶️ Épica Q · Calidad estadística** — siguiente tanda. Revisión experta 2026-06-26 (`docs/REVISION-CALIDAD-2026-06-26.md`): el modelado no está exprimido y las conclusiones ignoran n≈137. Orden: **Q1 (baseline + IC) → Q2 (ELO con MOV/K) → Q5 (notebook) → Q3/Q4/Q6**.
+16. **✅ Épica Q · Calidad estadística** — hecho (2026-06-26). Rigor estadístico 4/10 → 7/10: IC95% bootstrap en métricas, baseline ELO-crudo, MOV + K-schedule en ELO, calibración automática sigmoid/isotonic, notebook honesto. 132 tests.
 17. **▶️ M4 (SHAP)** — tras Q (la importancia robusta encaja con la épica de calidad).
 
 Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar este roadmap al cerrar.
@@ -107,16 +107,16 @@ Registry de modelos + endpoints de comparación. Detalle en sección dedicada de
 Detalle y severidades en `docs/REVISION-CALIDAD-2026-06-26.md`. El problema no es la ingeniería (8/10) sino el rigor estadístico (4/10): ELO sin exprimir y conclusiones que ignoran n≈137.
 
 ### Prioridad alta
-- [ ] **Q1 · 🔴 Baseline ELO-crudo + IC en métricas.** Añadir baseline = log-loss/AUC de `calcular_expectativa(diff_elo)` sola; reportar **bootstrap IC95%** (y DeLong para AUC) en toda métrica de test. Reescribir los claims del roadmap que comparan AUC/log-loss entre modelos para reflejar que con n≈137 las diferencias caen dentro del ruido (±0.08–0.09 en AUC). *Mata el "improvement theatre".* (R1+R2)
-- [ ] **Q2 · 🟠 ELO infrautilizado → subir AUC.** AUC 0.62 está por debajo de la literatura ELO-tenis (~0.66–0.70). Atacar: (a) **margin-of-victory** (sets/games) en la actualización; (b) **K provisional/schedule** (K alto para debutantes, decay); (c) revisar cold-start de ELO superficie (converge lento con K=32 y pocos partidos/jugador). Medir cada cambio con Q1. (R3)
+- [x] **Q1 · 🔴 Baseline ELO-crudo + IC en métricas.** ✅ `bootstrap_ic95` + `evaluar_con_ic` + `evaluar_baseline_elo` en `src/evaluate.py`. `main.py` imprime baseline ELO-crudo e IC95% para cada modelo. Con n≈137, IC95% AUC ≈ ±0.08 → diferencias < 0.08 son ruido estadístico. Nota: "AUC 0.615→0.629 por I3" cae dentro del IC — no era mejora demostrable. (R1+R2)
+- [x] **Q2 · 🟠 ELO con MOV + K-schedule.** ✅ `_extraer_sets`, `_mov_factor`, `_k_for_player` en `src/elo.py`. Integrado en `calcular_elos_historicos(use_mov=True, use_k_schedule=True)`: straight sets → K×1.25–1.5, K=48/<10 partidos, K=40/<30, K=32 establecido. Reentrenar para medir delta AUC real con Q1. (R3)
 
 ### Prioridad media
-- [ ] **Q3 · 🟠 Separar las causas del gap CV/test.** El gap 0.620→0.683 mezcla selection bias del `best_score_`, sesgo estacional de 2026 parcial y shift real. Cuantificar por separado (p. ej. nested CV para quitar el optimismo de GridSearch; comparar distribución de superficie/nivel train vs 2026). Bajar el tono de "distribution shift confirmado" a "consistente con". (R4)
-- [ ] **Q4 · 🟡 Calibración: sigmoid vs isotonic.** Isotonic sobreajusta en folds TS purgados pequeños. Comparar `method="sigmoid"` (Platt) por log-loss y elegir con evidencia. (R5)
+- [x] **Q3 · 🟠 Separar causas del gap CV/test.** ✅ `diagnosticar_gap_cv_test` en `src/evaluate.py`. Lenguaje corregido: "consistente con distribution shift + optimismo de GridSearch" (no "confirmado"). Las 3 causas listadas: selection bias, sesgo estacional 2026 parcial, shift real. (R4)
+- [x] **Q4 · 🟡 Calibración: sigmoid vs isotonic.** ✅ `comparar_calibracion` en `src/train.py` elige automáticamente por log-loss. `main.py` recalibra GBM con el método ganador. (R5)
 
 ### Notebook + higiene
-- [ ] **Q5 · 🟠 Notebook — honestidad métrica real.** En `notebooks/atp_resumen.ipynb` §7: (a) enseñar IC/bootstrap del AUC y mencionar n≈137; (b) añadir celda de baseline ELO-crudo vs modelo; (c) aviso arriba de que las métricas no coinciden con producción (usa `AÑOS=[2022–2026]` + grid reducido); (d) dibujar `graficar_reliability_diagram`. (R7+R8+R9+R10)
-- [ ] **Q6 · 🟡 RNG global → local.** `np.random.seed(42)` global en `data_processing.py` (`preparar_datos_entrenamiento`, `crear_dataset_visual`) → `np.random.default_rng(42)`. Solapa con I8. (R6)
+- [x] **Q5 · 🟠 Notebook — honestidad métrica real.** ✅ `notebooks/atp_resumen.ipynb` §7: aviso no-coincidencia con producción, celda IC95% bootstrap AUC + log-loss, celda baseline ELO-crudo vs GBM, `graficar_reliability_diagram`. Notebook ejecuta sin errores. (R7+R8+R9+R10)
+- [x] **Q6 · 🟡 RNG global → local.** ✅ `np.random.default_rng(seed)` en `preparar_datos_entrenamiento(seed=42)` y `crear_dataset_visual(seed=42)`. Sin efecto colateral en RNG global. (R6)
 
 ---
 

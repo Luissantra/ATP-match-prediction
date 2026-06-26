@@ -35,6 +35,71 @@ def evaluar(modelo, X, y):
     }
 
 
+def bootstrap_ic95(y_true, proba, metric='auc', n_iter=1000, seed=42):
+    """
+    Bootstrap IC95% para una métrica escalar.
+    metric ∈ {'auc', 'log_loss', 'brier'}.
+    Con n≈137 el IC95% del AUC ≈ ±0.08-0.09; diferencias entre modelos
+    suelen caer dentro del ruido → evitar claims de mejora sin IC.
+    """
+    _fns = {
+        'auc':      lambda yt, yp: roc_auc_score(yt, yp),
+        'log_loss': lambda yt, yp: log_loss(yt, yp, labels=[0, 1]),
+        'brier':    lambda yt, yp: brier_score_loss(yt, yp),
+    }
+    fn = _fns[metric]
+    y_arr = np.asarray(y_true)
+    p_arr = np.asarray(proba)
+    rng = np.random.default_rng(seed)
+    n = len(y_arr)
+    scores = []
+    for _ in range(n_iter):
+        idx = rng.integers(0, n, size=n)
+        scores.append(fn(y_arr[idx], p_arr[idx]))
+    scores = np.array(scores)
+    return {
+        'mean':  float(np.mean(scores)),
+        'lower': float(np.percentile(scores, 2.5)),
+        'upper': float(np.percentile(scores, 97.5)),
+    }
+
+
+def evaluar_con_ic(modelo, X, y, n_iter=1000, seed=42):
+    """
+    Extiende evaluar() añadiendo IC95% bootstrap para AUC, log-loss y Brier.
+    Con n≈137 las diferencias de AUC < 0.08 son ruido, no mejora demostrable.
+    """
+    proba = modelo.predict_proba(X)[:, 1]
+    base = evaluar(modelo, X, y)
+    base['auc_ic']      = bootstrap_ic95(y, proba, 'auc',      n_iter, seed)
+    base['log_loss_ic'] = bootstrap_ic95(y, proba, 'log_loss', n_iter, seed)
+    base['brier_ic']    = bootstrap_ic95(y, proba, 'brier',    n_iter, seed)
+    return base
+
+
+def evaluar_baseline_elo(df_test, y_true, n_iter=1000, seed=42):
+    """
+    Baseline obligatorio: ¿cuánto aporta el ML sobre ELO-crudo solo?
+    Usa calcular_expectativa(diff_elo_general) como predictor único.
+    Referencia: si log-loss/AUC del baseline ≈ modelo → el stack ML no añade valor.
+    """
+    from src.elo import calcular_expectativa
+    diff = df_test['diff_elo_general'].values
+    proba_baseline = np.array([calcular_expectativa(d, 0) for d in diff])
+    y_arr = np.asarray(y_true)
+    preds = (proba_baseline >= 0.5).astype(int)
+    met = {
+        'accuracy': float(accuracy_score(y_arr, preds)),
+        'log_loss': float(log_loss(y_arr, proba_baseline, labels=[0, 1])),
+        'brier':    float(brier_score_loss(y_arr, proba_baseline)),
+        'auc':      float(roc_auc_score(y_arr, proba_baseline)),
+    }
+    met['auc_ic']      = bootstrap_ic95(y_arr, proba_baseline, 'auc',      n_iter, seed)
+    met['log_loss_ic'] = bootstrap_ic95(y_arr, proba_baseline, 'log_loss', n_iter, seed)
+    met['brier_ic']    = bootstrap_ic95(y_arr, proba_baseline, 'brier',    n_iter, seed)
+    return met
+
+
 def evaluar_y_graficar(modelo, X_test, y_test, df_test, features,
                        modelo_para_importancia=None):
     preds = modelo.predict(X_test)
@@ -218,3 +283,25 @@ def _plot_accuracy_by_surface(df_test, preds, accuracy_global):
     plt.tight_layout()
     plt.savefig("plots/precision_por_superficie.png", dpi=300)
     plt.close()
+
+
+def diagnosticar_gap_cv_test(cv_best_score: float, test_log_loss: float, n_test: int) -> str:
+    """
+    Análisis textual del gap CV/test. No usa la palabra 'confirmado':
+    el gap mezcla optimismo de GridSearch (selection bias), sesgo estacional
+    y shift real — no se puede separar sin nested CV.
+    """
+    gap = test_log_loss - cv_best_score
+    lines = [
+        f"Gap CV→test: {cv_best_score:.4f} → {test_log_loss:.4f} (Δ={gap:+.4f})",
+        f"n_test={n_test} → IC95% log-loss ≈ ±{1.0 / (2 * (n_test**0.5)):.3f} aprox.",
+        "",
+        "Causas posibles (no separadas sin nested CV):",
+        "  1. Selection bias: best_score_ de GridSearch es optimista (elige sobre el mismo CV).",
+        "  2. Sesgo estacional: test=2026 parcial (mix torneo/superficie ≠ 2020-25).",
+        "  3. Distribution shift real: el circuito 2026 puede ser distinto.",
+        "",
+        "Diagnóstico: gap consistente con distribution shift + optimismo de GridSearch.",
+        "No se puede afirmar cuál domina sin nested CV o análisis de distribución train/test.",
+    ]
+    return "\n".join(lines)
