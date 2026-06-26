@@ -76,6 +76,27 @@ def test_ratios_in_valid_range(tmp_path):
         assert result[col].between(0.0, 1.0).all(), f"{col} out of range"
 
 
+def test_columnas_elo_separado_existen(tmp_path):
+    """Tras I3, el df debe exponer ELO general y de superficie por separado."""
+    df = _make_df()
+    df.to_csv(tmp_path / "2024.csv", index=False)
+    result, *_ = calcular_elos_historicos(str(tmp_path), [2024])
+    for col in ['elo_winner_general', 'elo_loser_general',
+                'elo_winner_sup', 'elo_loser_sup']:
+        assert col in result.columns, f"Falta columna {col}"
+
+
+def test_elo_general_y_sup_son_distintos(tmp_path):
+    """Los ratings general y de superficie divergen a medida que se juegan partidos."""
+    df = _make_df()
+    df.to_csv(tmp_path / "2024.csv", index=False)
+    result, *_ = calcular_elos_historicos(str(tmp_path), [2024])
+    # En el segundo partido (Clay), A tiene historial en Hard pero no en Clay:
+    # general habrá cambiado, superficie Clay empieza en 1500
+    row1 = result.iloc[1]
+    assert row1['elo_winner_general'] != row1['elo_winner_sup']
+
+
 def test_devuelve_h2h_y_form_finales(tmp_path):
     """Para inferencia: el motor debe exportar el estado final de H2H y forma."""
     df = _make_df()

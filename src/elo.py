@@ -155,6 +155,10 @@ def calcular_elos_historicos(data_dir, años):
     
     elo_ganador_previo = []
     elo_perdedor_previo = []
+    elo_ganador_gen_previo = []
+    elo_perdedor_gen_previo = []
+    elo_ganador_sup_previo = []
+    elo_perdedor_sup_previo = []
     h2h_winner_list = []
     h2h_loser_list = []
     form_winner_list = []
@@ -207,6 +211,10 @@ def calcular_elos_historicos(data_dir, años):
         
         elo_ganador_previo.append(elo_final_g)
         elo_perdedor_previo.append(elo_final_p)
+        elo_ganador_gen_previo.append(g_general)
+        elo_perdedor_gen_previo.append(p_general)
+        elo_ganador_sup_previo.append(g_superficie)
+        elo_perdedor_sup_previo.append(p_superficie)
         
         # Actualizar ratings dinámicamente post-partido (el ganador es 1, el perdedor es 0)
         nuevo_g_gen, nuevo_p_gen = actualizar_ratings(g_general, p_general, resultado_A=1)
@@ -228,6 +236,10 @@ def calcular_elos_historicos(data_dir, años):
         
     df_completo['elo_winner'] = elo_ganador_previo
     df_completo['elo_loser'] = elo_perdedor_previo
+    df_completo['elo_winner_general'] = elo_ganador_gen_previo
+    df_completo['elo_loser_general'] = elo_perdedor_gen_previo
+    df_completo['elo_winner_sup'] = elo_ganador_sup_previo
+    df_completo['elo_loser_sup'] = elo_perdedor_sup_previo
     df_completo['h2h_winner_ratio'] = h2h_winner_list
     df_completo['h2h_loser_ratio'] = h2h_loser_list
     df_completo['form_winner'] = form_winner_list
