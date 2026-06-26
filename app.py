@@ -35,12 +35,30 @@ def verificar_version_sklearn(saved_version):
     return None
 
 
+def validar_metadata_pkl(metadata):
+    """
+    Valida la estructura del dict cargado de stats_jugadores.pkl.
+    Devuelve un mensaje de error (str) si hay claves ausentes o tipo incorrecto, None si OK.
+    """
+    if not isinstance(metadata, dict):
+        return f"stats_jugadores.pkl corrupto: se esperaba dict, se obtuvo {type(metadata).__name__}"
+    claves_requeridas = {'elo_general', 'elo_superficie', 'stats'}
+    faltantes = claves_requeridas - metadata.keys()
+    if faltantes:
+        return f"stats_jugadores.pkl corrupto: claves ausentes {sorted(faltantes)}"
+    return None
+
+
 def cargar_modelo():
     global modelo, todos_modelos, metrics_todos
     global elo_general, elo_superficie, stats_jugadores, h2h, form_final
     try:
         with open("models/stats_jugadores.pkl", "rb") as f:
             metadata = pickle.load(f)
+        error_estructura = validar_metadata_pkl(metadata)
+        if error_estructura:
+            print(error_estructura)
+            return False
         elo_general = metadata['elo_general']
         elo_superficie = metadata['elo_superficie']
         stats_jugadores = metadata['stats']

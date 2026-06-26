@@ -260,6 +260,38 @@ def test_crear_dataset_visual_seeds_distintos_dan_shuffles_distintos():
     assert not (r1['label'].values == r2['label'].values).all()
 
 
+def test_simetrizacion_coherencia_label_diff_rank():
+    """label=1 (A=ganador) → diff_rank negativo (ganador mejor rankeado que perdedor)."""
+    n = 200
+    df = _make_df_con_elo(n=n)
+    df['winner_rank'] = 10.0
+    df['loser_rank'] = 50.0
+    result = preparar_datos_entrenamiento(df.copy(), seed=42)
+
+    label_1 = result[result['label'] == 1]
+    label_0 = result[result['label'] == 0]
+
+    # label=1: A=winner(10) - B=loser(50) = -40
+    assert (label_1['diff_rank'] == 10 - 50).all()
+    # label=0: A=loser(50) - B=winner(10) = +40
+    assert (label_0['diff_rank'] == 50 - 10).all()
+
+
+def test_simetrizacion_coherencia_label_diff_elo():
+    """label=1 → diff_elo_general positivo (ganador mejor ELO); label=0 → negativo."""
+    n = 200
+    df = _make_df_con_elo(n=n)
+    df['elo_winner_general'] = 1600.0
+    df['elo_loser_general'] = 1400.0
+    result = preparar_datos_entrenamiento(df.copy(), seed=42)
+
+    label_1 = result[result['label'] == 1]
+    label_0 = result[result['label'] == 0]
+
+    assert (label_1['diff_elo_general'] == 200.0).all()
+    assert (label_0['diff_elo_general'] == -200.0).all()
+
+
 def test_crear_dataset_visual_imputa_nans():
     with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as tmp:
         fname = tmp.name

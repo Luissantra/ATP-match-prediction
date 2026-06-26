@@ -6,7 +6,7 @@
 
 ## 🧭 Próximos pasos (orden recomendado)
 
-**P0 críticos (C1-C4) + I1 + Épica E1-E3 + I10 + G3 + I2 + I3 resueltos** (sesiones 2026-06-24 / 2026-06-26).
+**Todo el backlog resuelto** (sesiones 2026-06-24 / 2026-06-26). 153 tests. Backlog cerrado.
 
 1. **✅ I1 · Calibración** — hecho.
 2. **✅ E1+E2 · Multi-modelo entrenamiento + artefactos** — hecho.
@@ -67,14 +67,14 @@ Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar e
 - [x] **I3 · ELO híbrido 50/50 arbitrario.** ✅ Resuelto. `elo.py` emite `elo_winner/loser_general` y `elo_winner/loser_sup`. `diff_elo` reemplazada por `diff_elo_general` + `diff_elo_sup`. Reentrenado: AUC 0.615→0.629, log-loss 0.683→0.674 (GBM test ciego 2026). 92 tests.
 
 ### Producción
-- [~] **I4 · Pickle inseguro + riesgo de versión sklearn.** Versión: ✅ se guarda (Fase 1) y se **valida al cargar** (Fase 4, G2). Pendiente solo lo de seguridad: evaluar `skops` para carga sin ejecución de código arbitrario (riesgo bajo con artefactos propios).
+- [x] **I4 · Pickle inseguro + riesgo de versión sklearn.** Versión: ✅ se guarda y valida al cargar (G2). Seguridad: evaluado `skops` — no aplicable porque `stats_jugadores.pkl` y `metrics_atp.pkl` son dicts Python puros (no sklearn), y `SoftVotingEnsemble` es clase custom; riesgo aceptado (artefactos propios). `validar_metadata_pkl()` en `app.py` detecta corrupción/claves ausentes al cargar. 3 tests nuevos. 153 tests total.
 - [x] **I5 · Jugador desconocido cae a defaults silenciosos** ✅ Resuelto. `"unknown": true/false` en cada jugador de la respuesta API.
 - [x] **I6 · CSV con columnas faltantes → `KeyError` crudo** ✅ Resuelto. `ValueError` descriptivo con lista de columnas ausentes.
 
 ### Código
 - [x] **I7 · Lógica ELO híbrido duplicada 3×** ✅ Resuelto (Fase 1). `elo_hibrido()` única en `src/features.py`, usada por `elo.py` y `app.py`. `LEVEL_MAP` también centralizado allí.
 - [x] **I8 · `crear_dataset_visual` reimplementa simetrización con `iterrows`** ✅ Vectorizado con `np.where` (mismo patrón que `preparar_datos_entrenamiento`). 6 tests nuevos. 142 tests total.
-- [~] **I9 · Tests no cubren lo crítico.** Parcial (Fase 1): `tests/test_features.py` (orden/longitud vector) + `tests/test_app_features.py` (h2h/form reales, mismo jugador, `tourney_level` default, jugadores desconocidos). Falta: test del endpoint `/api/predict` vía test_client (superficie inválida, 400s) y determinismo de simetrización.
+- [x] **I9 · Tests no cubren lo crítico.** ✅ Completo. Endpoint tests → G3. Determinismo → `test_preparar_datos_seed_reproducible` + `test_crear_dataset_visual_determinista`. Coherencia simetrización → `test_simetrizacion_coherencia_label_diff_rank` + `test_simetrizacion_coherencia_label_diff_elo` (label ↔ signo de diffs: label=1 ↔ diff_rank negativo/diff_elo positivo). 153 tests total.
 
 ### Viz
 - [x] **I10 · Faltan 3 plots clave:** ✅ Resuelto. `graficar_reliability_diagram` e `graficar_histograma_probas` añadidas a `src/evaluate.py`; `graficar_learning_curve` ya existía. Las 3 se invocan desde `main.py`. 8 tests en `tests/test_evaluate.py`.
