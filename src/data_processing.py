@@ -113,54 +113,34 @@ def preparar_datos_entrenamiento(df_con_elo, seed=42):
 
 def crear_dataset_visual(filepath, seed=42):
     """
-    Carga un archivo anual individual y genera variables simétricas enriquecidas,
-    incluyendo la altura (height) de los jugadores para el análisis exploratorio visual (EDA).
-
-    Parameters
-    ----------
-    filepath : str
-        Ruta al archivo CSV anual (ej: 'data/2024.csv').
-
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame preparado para visualización con variables de diferencias y etiquetas de texto.
+    Carga un CSV anual y genera diferencias simétricas (rank, age, ht) para EDA.
+    Simetrización vectorizada: mismo patrón que preparar_datos_entrenamiento.
     """
     df = pd.read_csv(filepath)
-    
-    # Limpieza e imputación de rankings y alturas
+
     df['winner_rank'] = df['winner_rank'].fillna(999)
-    df['loser_rank'] = df['loser_rank'].fillna(999)
-    
+    df['loser_rank']  = df['loser_rank'].fillna(999)
+
     mediana_ht = df['winner_ht'].median() if not df['winner_ht'].isnull().all() else 185.0
     df['winner_ht'] = df['winner_ht'].fillna(mediana_ht)
-    df['loser_ht'] = df['loser_ht'].fillna(mediana_ht)
-    
+    df['loser_ht']  = df['loser_ht'].fillna(mediana_ht)
+
     df['winner_age'] = df['winner_age'].fillna(df['winner_age'].median() if not df['winner_age'].isnull().all() else 26.0)
-    df['loser_age'] = df['loser_age'].fillna(df['loser_age'].median() if not df['loser_age'].isnull().all() else 26.0)
-    
+    df['loser_age']  = df['loser_age'].fillna(df['loser_age'].median() if not df['loser_age'].isnull().all() else 26.0)
+
     rng = np.random.default_rng(seed)
-    shuffle_mask = rng.random(len(df)) > 0.5
-    
-    features = []
-    for i in range(len(df)):
-        row = df.iloc[i]
-        if shuffle_mask[i]:
-            rank_A, rank_B = row['winner_rank'], row['loser_rank']
-            age_A, age_B = row['winner_age'], row['loser_age']
-            ht_A, ht_B = row['winner_ht'], row['loser_ht']
-            label = 1
-        else:
-            rank_A, rank_B = row['loser_rank'], row['winner_rank']
-            age_A, age_B = row['loser_age'], row['winner_age']
-            ht_A, ht_B = row['loser_ht'], row['winner_ht']
-            label = 0
-            
-        features.append({
-            'diff_rank': rank_A - rank_B,
-            'diff_age': age_A - age_B,
-            'diff_ht': ht_A - ht_B,
-            'label': label
-        })
-        
-    return pd.DataFrame(features)
+    shuffle = rng.random(len(df)) > 0.5
+
+    rank_a = np.where(shuffle, df['winner_rank'].values, df['loser_rank'].values)
+    rank_b = np.where(shuffle, df['loser_rank'].values,  df['winner_rank'].values)
+    age_a  = np.where(shuffle, df['winner_age'].values,  df['loser_age'].values)
+    age_b  = np.where(shuffle, df['loser_age'].values,   df['winner_age'].values)
+    ht_a   = np.where(shuffle, df['winner_ht'].values,   df['loser_ht'].values)
+    ht_b   = np.where(shuffle, df['loser_ht'].values,    df['winner_ht'].values)
+
+    return pd.DataFrame({
+        'diff_rank': rank_a - rank_b,
+        'diff_age':  age_a  - age_b,
+        'diff_ht':   ht_a   - ht_b,
+        'label':     np.where(shuffle, 1, 0),
+    })

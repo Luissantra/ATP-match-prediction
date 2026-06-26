@@ -25,7 +25,8 @@
 15. **✅ N1 · Notebook didáctico** — hecho. `notebooks/atp_resumen.ipynb` (ELO, híbrido, simetrización, 8 features, CV con embargo, métricas honestas).
 16. **✅ Épica Q · Calidad estadística** — hecho (2026-06-26). Rigor estadístico 4/10 → 7/10: IC95% bootstrap en métricas, baseline ELO-crudo, MOV + K-schedule en ELO, calibración automática sigmoid/isotonic, notebook honesto. 132 tests.
 17. **✅ M4 · Permutation importance** — hecho. `permutation_importancia` + `graficar_permutation_importance` en `src/evaluate.py`. 140 tests.
-18. **▶️ I8** — `crear_dataset_visual` (siguiente).
+18. **✅ I8** — `crear_dataset_visual` vectorizado. 142 tests.
+19. **▶️ E5** — Ensemble soft-voting (siguiente).
 
 Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar este roadmap al cerrar.
 
@@ -72,7 +73,7 @@ Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar e
 
 ### Código
 - [x] **I7 · Lógica ELO híbrido duplicada 3×** ✅ Resuelto (Fase 1). `elo_hibrido()` única en `src/features.py`, usada por `elo.py` y `app.py`. `LEVEL_MAP` también centralizado allí.
-- [ ] **I8 · `crear_dataset_visual` reimplementa simetrización con `iterrows`** (lento, diverge de la versión vectorizada, seed global con efecto colateral). Unificar o borrar.
+- [x] **I8 · `crear_dataset_visual` reimplementa simetrización con `iterrows`** ✅ Vectorizado con `np.where` (mismo patrón que `preparar_datos_entrenamiento`). 6 tests nuevos. 142 tests total.
 - [~] **I9 · Tests no cubren lo crítico.** Parcial (Fase 1): `tests/test_features.py` (orden/longitud vector) + `tests/test_app_features.py` (h2h/form reales, mismo jugador, `tourney_level` default, jugadores desconocidos). Falta: test del endpoint `/api/predict` vía test_client (superficie inválida, 400s) y determinismo de simetrización.
 
 ### Viz

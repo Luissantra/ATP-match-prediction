@@ -195,3 +195,81 @@ def test_preparar_datos_seed_diferente_da_diferente_shuffle():
     r2 = preparar_datos_entrenamiento(df.copy(), seed=99)
     # Different seeds → different label distributions (may occasionally be equal but very unlikely with n=20)
     assert not (r1['label'].values == r2['label'].values).all()
+
+
+# --- Tests I8: crear_dataset_visual ---
+
+import csv as _csv
+import tempfile
+from src.data_processing import crear_dataset_visual
+
+
+def _make_visual_csv(filepath, n=40):
+    rows = [{
+        'winner_name': f'A{i}', 'loser_name': f'B{i}',
+        'winner_rank': float(10 + i), 'loser_rank': float(20 + i),
+        'winner_age': 25.0, 'loser_age': 27.0,
+        'winner_ht': 185.0, 'loser_ht': 180.0,
+    } for i in range(n)]
+    with open(filepath, 'w', newline='') as f:
+        writer = _csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def test_crear_dataset_visual_columnas():
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as tmp:
+        fname = tmp.name
+    _make_visual_csv(fname)
+    result = crear_dataset_visual(fname)
+    assert {'diff_rank', 'diff_age', 'diff_ht', 'label'}.issubset(result.columns)
+
+
+def test_crear_dataset_visual_sin_nans():
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as tmp:
+        fname = tmp.name
+    _make_visual_csv(fname)
+    result = crear_dataset_visual(fname)
+    assert not result.isnull().any().any()
+
+
+def test_crear_dataset_visual_label_binario():
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as tmp:
+        fname = tmp.name
+    _make_visual_csv(fname)
+    result = crear_dataset_visual(fname)
+    assert set(result['label'].unique()).issubset({0, 1})
+
+
+def test_crear_dataset_visual_determinista():
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as tmp:
+        fname = tmp.name
+    _make_visual_csv(fname, n=40)
+    r1 = crear_dataset_visual(fname, seed=42)
+    r2 = crear_dataset_visual(fname, seed=42)
+    assert (r1['label'].values == r2['label'].values).all()
+    assert (r1['diff_rank'].values == r2['diff_rank'].values).all()
+
+
+def test_crear_dataset_visual_seeds_distintos_dan_shuffles_distintos():
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as tmp:
+        fname = tmp.name
+    _make_visual_csv(fname, n=40)
+    r1 = crear_dataset_visual(fname, seed=42)
+    r2 = crear_dataset_visual(fname, seed=99)
+    assert not (r1['label'].values == r2['label'].values).all()
+
+
+def test_crear_dataset_visual_imputa_nans():
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as tmp:
+        fname = tmp.name
+    rows = [{'winner_name': 'A', 'loser_name': 'B',
+              'winner_rank': '', 'loser_rank': '',
+              'winner_age': '', 'loser_age': '',
+              'winner_ht': '', 'loser_ht': ''}]
+    with open(fname, 'w', newline='') as f:
+        writer = _csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+    result = crear_dataset_visual(fname)
+    assert not result.isnull().any().any()
