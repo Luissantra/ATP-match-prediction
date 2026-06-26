@@ -158,3 +158,40 @@ def test_label_balanced():
     ratio = result['label'].mean()
     # seed=42 fijo en preparar_datos_entrenamiento → resultado determinista: 47/100
     assert ratio == 0.47
+
+
+def _make_df_con_elo(n=20):
+    return pd.DataFrame({
+        'tourney_date': [20240101] * n,
+        'winner_name': [f'A{i}' for i in range(n)],
+        'loser_name':  [f'B{i}' for i in range(n)],
+        'elo_winner_general': np.full(n, 1500.0),
+        'elo_loser_general':  np.full(n, 1500.0),
+        'elo_winner_sup':     np.full(n, 1500.0),
+        'elo_loser_sup':      np.full(n, 1500.0),
+        'winner_rank': np.full(n, 10.0),
+        'loser_rank':  np.full(n, 20.0),
+        'winner_age':  np.full(n, 25.0),
+        'loser_age':   np.full(n, 27.0),
+        'h2h_winner_ratio': np.full(n, 0.5),
+        'h2h_loser_ratio':  np.full(n, 0.5),
+        'form_winner': np.full(n, 0.5),
+        'form_loser':  np.full(n, 0.5),
+        'tourney_level': ['250'] * n,
+        'surface': ['Hard'] * n,
+    })
+
+
+def test_preparar_datos_seed_reproducible():
+    df = _make_df_con_elo(n=50)
+    r1 = preparar_datos_entrenamiento(df.copy(), seed=42)
+    r2 = preparar_datos_entrenamiento(df.copy(), seed=42)
+    assert (r1['label'].values == r2['label'].values).all()
+
+
+def test_preparar_datos_seed_diferente_da_diferente_shuffle():
+    df = _make_df_con_elo(n=20)
+    r1 = preparar_datos_entrenamiento(df.copy(), seed=42)
+    r2 = preparar_datos_entrenamiento(df.copy(), seed=99)
+    # Different seeds → different label distributions (may occasionally be equal but very unlikely with n=20)
+    assert not (r1['label'].values == r2['label'].values).all()
