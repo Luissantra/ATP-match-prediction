@@ -39,7 +39,7 @@ def cargar_modelo():
     global modelo, todos_modelos, metrics_todos
     global elo_general, elo_superficie, stats_jugadores, h2h, form_final
     try:
-        with open("stats_jugadores.pkl", "rb") as f:
+        with open("models/stats_jugadores.pkl", "rb") as f:
             metadata = pickle.load(f)
         elo_general = metadata['elo_general']
         elo_superficie = metadata['elo_superficie']
@@ -50,9 +50,9 @@ def cargar_modelo():
         if aviso:
             print(aviso)
 
-        with open("modelos_atp.pkl", "rb") as f:
+        with open("models/modelos_atp.pkl", "rb") as f:
             todos_modelos = pickle.load(f)
-        with open("metrics_atp.pkl", "rb") as f:
+        with open("models/metrics_atp.pkl", "rb") as f:
             metrics_todos = pickle.load(f)
         modelo = todos_modelos['gbm']
         print(f"Modelos cargados: {list(todos_modelos.keys())}")

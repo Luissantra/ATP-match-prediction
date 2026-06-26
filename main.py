@@ -126,14 +126,14 @@ if __name__ == "__main__":
             }
 
     # modelos_atp.pkl: todos los modelos calibrados (incluye gbm = modelo principal)
-    with open('modelos_atp.pkl', 'wb') as f:
+    with open('models/modelos_atp.pkl', 'wb') as f:
         pickle.dump(todos_modelos, f)
 
     # metrics_atp.pkl: métricas test principal (2025) para /api/models
-    with open('metrics_atp.pkl', 'wb') as f:
+    with open('models/metrics_atp.pkl', 'wb') as f:
         pickle.dump(metrics_all, f)
 
-    with open('stats_jugadores.pkl', 'wb') as f:
+    with open('models/stats_jugadores.pkl', 'wb') as f:
         pickle.dump({'elo_general': ratings_finales, 'elo_superficie': ratings_superficie,
                      'stats': stats_jugadores, 'h2h': h2h, 'form': form_final,
                      'sklearn_version': sklearn.__version__}, f)
