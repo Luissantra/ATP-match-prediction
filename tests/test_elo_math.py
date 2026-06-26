@@ -3,7 +3,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from src.elo import calcular_expectativa, actualizar_ratings
+from src.elo import calcular_expectativa, actualizar_ratings, _extraer_sets, _mov_factor, _k_for_player
 
 
 class TestCalcularExpectativa:
@@ -77,3 +77,64 @@ class TestActualizarRatings:
         e_a = 1 / (1 + 10 ** ((b - a) / 400))
         delta = 32 * (1 - e_a)
         assert nuevo_a == pytest.approx(a + delta, abs=1e-9)
+
+
+# _extraer_sets
+def test_extraer_sets_bo3_straight():
+    assert _extraer_sets("6-4 6-2") == (2, 0)
+
+def test_extraer_sets_bo3_deciding():
+    assert _extraer_sets("4-6 7-5 6-3") == (2, 1)
+
+def test_extraer_sets_bo5_straight():
+    assert _extraer_sets("6-3 6-2 6-1") == (3, 0)
+
+def test_extraer_sets_bo5_one_loss():
+    assert _extraer_sets("6-3 4-6 6-2 7-5") == (3, 1)
+
+def test_extraer_sets_bo5_deciding():
+    assert _extraer_sets("6-3 4-6 6-2 4-6 6-3") == (3, 2)
+
+def test_extraer_sets_tiebreak_notation():
+    assert _extraer_sets("7-6(5) 6-4") == (2, 0)
+
+def test_extraer_sets_ret():
+    assert _extraer_sets("6-3 4-6 RET") == (0, 0)
+
+def test_extraer_sets_empty():
+    assert _extraer_sets("") == (0, 0)
+
+def test_extraer_sets_wo():
+    assert _extraer_sets("W/O") == (0, 0)
+
+# _mov_factor
+def test_mov_factor_straight_bo3():
+    assert _mov_factor(2, 0) == pytest.approx(1.25)
+
+def test_mov_factor_deciding_bo3():
+    assert _mov_factor(2, 1) == pytest.approx(1.0)
+
+def test_mov_factor_bo5_straight():
+    assert _mov_factor(3, 0) == pytest.approx(1.5)
+
+def test_mov_factor_bo5_one_loss():
+    assert _mov_factor(3, 1) == pytest.approx(1.25)
+
+def test_mov_factor_bo5_deciding():
+    assert _mov_factor(3, 2) == pytest.approx(1.0)
+
+def test_mov_factor_unparseable_gives_one():
+    assert _mov_factor(0, 0) == pytest.approx(1.0)
+
+# _k_for_player
+def test_k_provisional_for_debutantes():
+    assert _k_for_player(0) == 48
+    assert _k_for_player(9) == 48
+
+def test_k_intermediate():
+    assert _k_for_player(10) == 40
+    assert _k_for_player(29) == 40
+
+def test_k_established():
+    assert _k_for_player(30) == 32
+    assert _k_for_player(1000) == 32

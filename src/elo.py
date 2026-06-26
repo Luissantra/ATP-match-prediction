@@ -35,12 +35,57 @@ Fundamentos Matemáticos:
        Si el "underdog" da la sorpresa (S_A = 1, E_A = 0.10), el ajuste es drástico (ajuste de +28.8 pts).
 """
 
+import re
 import pandas as pd
 import numpy as np
 import os
 from collections import deque
 
 from src.features import elo_hibrido
+
+
+def _extraer_sets(score: str):
+    """
+    Extrae (winner_sets, loser_sets) del campo 'score' del CSV ATP.
+    Formato típico: "6-4 6-2" / "7-6(5) 4-6 7-5" / "6-3 RET".
+    Returns (0, 0) si el score no es parseable (RET, W/O, vacío).
+    """
+    if not score or not isinstance(score, str):
+        return (0, 0)
+    if re.search(r'\bRET\b|\bW/O\b', score, re.IGNORECASE):
+        return (0, 0)
+    sets = re.findall(r'(\d+)-(\d+)(?:\(\d+\))?', score)
+    if not sets:
+        return (0, 0)
+    winner_sets = sum(1 for w, l in sets if int(w) > int(l))
+    loser_sets  = sum(1 for w, l in sets if int(l) > int(w))
+    return (winner_sets, loser_sets)
+
+
+def _mov_factor(winner_sets: int, loser_sets: int) -> float:
+    """
+    Multiplicador del factor-K basado en margin of victory.
+    Formula: 1.0 + 0.25 * (winner_sets - loser_sets - 1)
+    Resultado: straight sets → >1.0, deciding set → 1.0.
+    Si no hay datos (0,0) devuelve 1.0.
+    """
+    if winner_sets == 0 and loser_sets == 0:
+        return 1.0
+    return max(1.0, 1.0 + 0.25 * (winner_sets - loser_sets - 1))
+
+
+def _k_for_player(n_partidos: int) -> float:
+    """
+    K-schedule: K alto para debutantes (cold-start), decrece a 32 para titulares.
+    Reduce el rating-drift que se produce cuando un debutante con K=32 baja
+    demasiado lento el ELO de los rivales que pierde.
+    """
+    if n_partidos < 10:
+        return 48.0
+    if n_partidos < 30:
+        return 40.0
+    return 32.0
+
 
 def calcular_expectativa(rating_A, rating_B):
     """
