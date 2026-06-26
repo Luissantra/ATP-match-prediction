@@ -33,7 +33,7 @@ al 50% (evitando sesgos sistemáticos) y el modelo aprende la verdadera frontera
 import pandas as pd
 import numpy as np
 
-from src.features import LEVEL_MAP  # fuente única; re-exportado para compatibilidad
+from src.features import LEVEL_MAP, RANK_CAP  # fuente única; re-exportado para compatibilidad
 
 def preparar_datos_entrenamiento(df_con_elo):
     """
@@ -75,10 +75,17 @@ def preparar_datos_entrenamiento(df_con_elo):
     shuffle = np.random.rand(len(df)) > 0.5
 
     # 4. Simetrización vectorizada: A = ganador si shuffle, A = perdedor si no
-    elo_a  = np.where(shuffle, df['elo_winner'],       df['elo_loser'])
-    elo_b  = np.where(shuffle, df['elo_loser'],        df['elo_winner'])
-    rank_a = np.where(shuffle, df['winner_rank'],      df['loser_rank'])
-    rank_b = np.where(shuffle, df['loser_rank'],       df['winner_rank'])
+
+    # Ranks crudos — necesarios para is_unranked antes del cap (I2)
+    rank_a_raw = np.where(shuffle, df['winner_rank'], df['loser_rank'])
+    rank_b_raw = np.where(shuffle, df['loser_rank'],  df['winner_rank'])
+
+    # ELO general y superficie separados (I3: GBM aprende el peso)
+    elo_gen_a = np.where(shuffle, df['elo_winner_general'], df['elo_loser_general'])
+    elo_gen_b = np.where(shuffle, df['elo_loser_general'],  df['elo_winner_general'])
+    elo_sup_a = np.where(shuffle, df['elo_winner_sup'],     df['elo_loser_sup'])
+    elo_sup_b = np.where(shuffle, df['elo_loser_sup'],      df['elo_winner_sup'])
+
     age_a  = np.where(shuffle, df['winner_age'],       df['loser_age'])
     age_b  = np.where(shuffle, df['loser_age'],        df['winner_age'])
     h2h_a  = np.where(shuffle, df.get('h2h_winner_ratio', 0.5), df.get('h2h_loser_ratio', 0.5))
@@ -93,8 +100,10 @@ def preparar_datos_entrenamiento(df_con_elo):
         'year':             df['tourney_date'].astype(str).str[:4].astype(int).values,
         'tourney_date':     df['tourney_date'].values,  # yyyymmdd, para el embargo temporal del CV
         'surface':          df['surface'].values if 'surface' in df.columns else 'Hard',
-        'diff_elo':         elo_a - elo_b,
-        'diff_rank':        rank_a - rank_b,
+        'diff_elo_general': elo_gen_a - elo_gen_b,
+        'diff_elo_sup':     elo_sup_a - elo_sup_b,
+        'diff_rank':        np.minimum(rank_a_raw, RANK_CAP) - np.minimum(rank_b_raw, RANK_CAP),
+        'is_unranked':      (rank_a_raw >= 999).astype(int) - (rank_b_raw >= 999).astype(int),
         'diff_age':         age_a - age_b,
         'diff_h2h':         h2h_a - h2h_b,
         'diff_form':        form_a - form_b,
