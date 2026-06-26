@@ -18,9 +18,9 @@ NOMBRES_MODELOS = {"logreg", "randomforest", "gbm", "xgboost"}
 
 
 def _mock_modelo():
-    """LogReg trivial que devuelve probabilidades válidas."""
+    """LogReg trivial que devuelve probabilidades válidas. 8 features = len(FEATURES)."""
     m = LogisticRegression()
-    m.fit([[0, 0, 0, 0, 0, 0], [1, 1, 1, 1, 1, 1]], [0, 1])
+    m.fit([[0, 0, 0, 0, 0, 0, 0, 0], [1, 1, 1, 1, 1, 1, 1, 1]], [0, 1])
     return m
 
 

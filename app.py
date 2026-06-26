@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 
 from src.features import (
-    FEATURES, LEVEL_MAP, DEFAULT_LEVEL_NUM, elo_hibrido, vector_from_features,
+    FEATURES, LEVEL_MAP, DEFAULT_LEVEL_NUM, RANK_CAP, elo_hibrido, vector_from_features,
 )
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -104,11 +104,13 @@ def construir_features(player_a, player_b, surface, tourney_level=None):
     level_num = LEVEL_MAP.get(str(tourney_level), DEFAULT_LEVEL_NUM)
 
     return {
-        'diff_elo':  elo_hibrido(gen_a, sup_a) - elo_hibrido(gen_b, sup_b),
-        'diff_rank': rank_a - rank_b,
-        'diff_age':  age_a - age_b,
-        'diff_h2h':  ratio_a - ratio_b,
-        'diff_form': form_a - form_b,
+        'diff_elo_general': gen_a - gen_b,
+        'diff_elo_sup':     sup_a - sup_b,
+        'diff_rank':        min(rank_a, RANK_CAP) - min(rank_b, RANK_CAP),
+        'is_unranked':      int(rank_a >= 999) - int(rank_b >= 999),
+        'diff_age':         age_a - age_b,
+        'diff_h2h':         ratio_a - ratio_b,
+        'diff_form':        form_a - form_b,
         'tourney_level_num': level_num,
     }
 
@@ -157,11 +159,13 @@ def _predecir_con(modelo_usado, player_a, player_b, surface, tourney_level):
         },
         "surface": surface,
         "features_debug": {
-            "diff_elo": round(feat['diff_elo'], 1),
-            "diff_rank": int(feat['diff_rank']),
-            "diff_age": round(feat['diff_age'], 2),
-            "diff_h2h": round(feat['diff_h2h'], 3),
-            "diff_form": round(feat['diff_form'], 3),
+            "diff_elo_general": round(feat['diff_elo_general'], 1),
+            "diff_elo_sup":     round(feat['diff_elo_sup'], 1),
+            "diff_rank":        int(feat['diff_rank']),
+            "is_unranked":      int(feat['is_unranked']),
+            "diff_age":         round(feat['diff_age'], 2),
+            "diff_h2h":         round(feat['diff_h2h'], 3),
+            "diff_form":        round(feat['diff_form'], 3),
             "tourney_level_num": feat['tourney_level_num'],
         },
         "predicted_winner": player_a if prob_a > prob_b else player_b,
