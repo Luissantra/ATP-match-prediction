@@ -283,3 +283,25 @@ def _plot_accuracy_by_surface(df_test, preds, accuracy_global):
     plt.tight_layout()
     plt.savefig("plots/precision_por_superficie.png", dpi=300)
     plt.close()
+
+
+def diagnosticar_gap_cv_test(cv_best_score: float, test_log_loss: float, n_test: int) -> str:
+    """
+    Análisis textual del gap CV/test. No usa la palabra 'confirmado':
+    el gap mezcla optimismo de GridSearch (selection bias), sesgo estacional
+    y shift real — no se puede separar sin nested CV.
+    """
+    gap = test_log_loss - cv_best_score
+    lines = [
+        f"Gap CV→test: {cv_best_score:.4f} → {test_log_loss:.4f} (Δ={gap:+.4f})",
+        f"n_test={n_test} → IC95% log-loss ≈ ±{1.0 / (2 * (n_test**0.5)):.3f} aprox.",
+        "",
+        "Causas posibles (no separadas sin nested CV):",
+        "  1. Selection bias: best_score_ de GridSearch es optimista (elige sobre el mismo CV).",
+        "  2. Sesgo estacional: test=2026 parcial (mix torneo/superficie ≠ 2020-25).",
+        "  3. Distribution shift real: el circuito 2026 puede ser distinto.",
+        "",
+        "Diagnóstico: gap consistente con distribution shift + optimismo de GridSearch.",
+        "No se puede afirmar cuál domina sin nested CV o análisis de distribución train/test.",
+    ]
+    return "\n".join(lines)

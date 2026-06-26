@@ -8,6 +8,7 @@ from src.train import entrenar_modelo, calibrar_modelo, comparar_calibracion, en
 from src.evaluate import (
     evaluar, evaluar_con_ic, evaluar_baseline_elo, evaluar_y_graficar,
     graficar_learning_curve, graficar_reliability_diagram, graficar_histograma_probas,
+    diagnosticar_gap_cv_test,
 )
 from src.cv import purged_time_series_splits
 
@@ -85,6 +86,14 @@ if __name__ == "__main__":
         print(f"    {nombre:<14} log-loss={met_ic['log_loss']:.4f} [{met_ic['log_loss_ic']['lower']:.4f}–{met_ic['log_loss_ic']['upper']:.4f}]  "
               f"AUC={met_ic['auc']:.4f} [{met_ic['auc_ic']['lower']:.4f}–{met_ic['auc_ic']['upper']:.4f}]")
     print("  Nota: diferencias < 0.08 en AUC son ruido estadístico con n≈137.")
+
+    # Q3: Diagnóstico causas del gap CV/test
+    print("\n[Q3] Diagnóstico gap CV/test:")
+    print(diagnosticar_gap_cv_test(
+        cv_best_score=0.620,
+        test_log_loss=metrics_all['gbm']['log_loss'],
+        n_test=len(y_test),
+    ))
 
     # 5. Exportar artefactos
     print("\n[5/5] Exportando artefactos...")

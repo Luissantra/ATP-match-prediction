@@ -161,3 +161,19 @@ def test_baseline_elo_requiere_columna():
     df = pd.DataFrame({'other_col': [1, 2, 3]})
     with pytest.raises(KeyError):
         evaluar_baseline_elo(df, [0, 1, 0])
+
+
+# --- Tests Q3: diagnosticar_gap_cv_test ---
+
+from src.evaluate import diagnosticar_gap_cv_test
+
+
+def test_diagnosticar_gap_devuelve_string():
+    msg = diagnosticar_gap_cv_test(cv_best_score=0.620, test_log_loss=0.683, n_test=137)
+    assert isinstance(msg, str)
+    assert len(msg) > 50
+
+
+def test_diagnosticar_gap_no_dice_confirmado():
+    msg = diagnosticar_gap_cv_test(cv_best_score=0.620, test_log_loss=0.683, n_test=137)
+    assert 'confirmado' not in msg.lower()
