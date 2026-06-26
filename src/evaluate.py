@@ -223,11 +223,13 @@ def _plot_confusion_matrix(y_test, preds, accuracy):
 
 def _plot_feature_importance(modelo, features):
     feature_labels = {
-        'diff_elo': 'Diferencia ELO',
-        'diff_rank': 'Diferencia Ranking',
-        'diff_age': 'Diferencia Edad',
-        'diff_h2h': 'H2H Histórico',
-        'diff_form': 'Forma Reciente',
+        'diff_elo_general':  'ELO General',
+        'diff_elo_sup':      'ELO Superficie',
+        'diff_rank':         'Ranking',
+        'is_unranked':       'Sin Ranking',
+        'diff_age':          'Edad',
+        'diff_h2h':          'H2H Histórico',
+        'diff_form':         'Forma Reciente',
         'tourney_level_num': 'Nivel de Torneo',
     }
     labels = [feature_labels.get(f, f) for f in features]
