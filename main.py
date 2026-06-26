@@ -53,7 +53,6 @@ if __name__ == "__main__":
 
     # Q4: Elegir calibración óptima para GBM (sigmoid vs isotonic)
     print("\n[3b/5] Comparando calibración sigmoid vs isotonic (GBM)...")
-    from src.train import comparar_calibracion, calibrar_modelo
     res_cal = comparar_calibracion(modelo_base_gbm, X_train_arr, y_train_arr, dates=dates_train)
     print(f"  sigmoid log-loss={res_cal['sigmoid_log_loss']:.4f}  "
           f"isotonic log-loss={res_cal['isotonic_log_loss']:.4f}  → mejor: {res_cal['mejor']}")
