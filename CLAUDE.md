@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workflow de integración
+
+Proyecto individual. Al completar trabajo en una rama: merge a main localmente y push directo. No se crean Pull Requests.
+
 ## Comandos
 
 ```bash
