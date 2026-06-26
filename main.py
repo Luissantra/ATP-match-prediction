@@ -5,7 +5,10 @@ from src.elo import calcular_elos_historicos
 from src.data_processing import preparar_datos_entrenamiento
 from src.features import FEATURES
 from src.train import entrenar_modelo, calibrar_modelo, entrenar_todos_los_modelos
-from src.evaluate import evaluar, evaluar_y_graficar, graficar_learning_curve
+from src.evaluate import (
+    evaluar, evaluar_y_graficar, graficar_learning_curve,
+    graficar_reliability_diagram, graficar_histograma_probas,
+)
 from src.cv import purged_time_series_splits
 
 AÑOS = [2020, 2021, 2022, 2023, 2024, 2025, 2026]
@@ -61,6 +64,8 @@ if __name__ == "__main__":
                        modelo_para_importancia=modelo_base_gbm)
     cv_splits = list(purged_time_series_splits(df_train['tourney_date'].values, n_splits=5))
     graficar_learning_curve(modelo_base_gbm, X_train, y_train, cv_splits)
+    graficar_reliability_diagram(modelo, X_test, y_test)
+    graficar_histograma_probas(modelo, X_test, y_test)
 
     # 5. Exportar artefactos
     print("\n[5/5] Exportando artefactos...")
