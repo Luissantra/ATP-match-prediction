@@ -1,3 +1,4 @@
+import numpy as np
 from sklearn.base import clone
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
@@ -6,6 +7,25 @@ from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
 from xgboost import XGBClassifier
 
 from src.cv import purged_time_series_splits
+
+
+class SoftVotingEnsemble:
+    """Promedia las probabilidades de un conjunto de modelos ya entrenados."""
+
+    def __init__(self, modelos):
+        self._modelos = list(modelos.values()) if isinstance(modelos, dict) else list(modelos)
+
+    def predict_proba(self, X):
+        probas = np.mean([m.predict_proba(X) for m in self._modelos], axis=0)
+        return probas
+
+    def predict(self, X):
+        return (self.predict_proba(X)[:, 1] >= 0.5).astype(int)
+
+
+def crear_ensemble(modelos_calibrados):
+    """Crea un SoftVotingEnsemble a partir de los modelos calibrados."""
+    return SoftVotingEnsemble(modelos_calibrados)
 
 
 def entrenar_modelo(X_train, y_train, param_grid=None, dates=None, embargo_days=7):

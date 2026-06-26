@@ -120,3 +120,63 @@ def test_comparar_calibracion_mejor_es_menor_log_loss():
         assert res['sigmoid_log_loss'] <= res['isotonic_log_loss']
     else:
         assert res['isotonic_log_loss'] <= res['sigmoid_log_loss']
+
+
+# --- Tests E5: SoftVotingEnsemble + crear_ensemble ---
+
+from src.train import SoftVotingEnsemble, crear_ensemble
+from sklearn.linear_model import LogisticRegression
+
+
+def _cuatro_modelos_simples():
+    """Cuatro modelos ya entrenados en datos linealmente separables."""
+    rng = np.random.default_rng(0)
+    X = rng.standard_normal((100, 3))
+    y = (X[:, 0] > 0).astype(int)
+    return {
+        'a': LogisticRegression(C=1).fit(X, y),
+        'b': LogisticRegression(C=0.1).fit(X, y),
+        'c': LogisticRegression(C=10).fit(X, y),
+        'd': LogisticRegression(C=0.5).fit(X, y),
+    }, X, y
+
+
+def test_soft_voting_predict_proba_shape():
+    modelos, X, y = _cuatro_modelos_simples()
+    ens = SoftVotingEnsemble(modelos)
+    proba = ens.predict_proba(X)
+    assert proba.shape == (len(X), 2)
+
+
+def test_soft_voting_predict_proba_en_rango():
+    modelos, X, y = _cuatro_modelos_simples()
+    ens = SoftVotingEnsemble(modelos)
+    proba = ens.predict_proba(X)
+    assert np.all(proba >= 0.0) and np.all(proba <= 1.0)
+
+
+def test_soft_voting_predict_proba_suma_uno():
+    modelos, X, y = _cuatro_modelos_simples()
+    ens = SoftVotingEnsemble(modelos)
+    proba = ens.predict_proba(X)
+    np.testing.assert_allclose(proba.sum(axis=1), 1.0, atol=1e-10)
+
+
+def test_soft_voting_es_promedio_exacto():
+    modelos, X, y = _cuatro_modelos_simples()
+    ens = SoftVotingEnsemble(modelos)
+    esperado = np.mean([m.predict_proba(X) for m in modelos.values()], axis=0)
+    np.testing.assert_allclose(ens.predict_proba(X), esperado, atol=1e-12)
+
+
+def test_soft_voting_predict_binario():
+    modelos, X, y = _cuatro_modelos_simples()
+    ens = SoftVotingEnsemble(modelos)
+    preds = ens.predict(X)
+    assert set(np.unique(preds)).issubset({0, 1})
+
+
+def test_crear_ensemble_tiene_predict_y_predict_proba():
+    modelos, X, y = _cuatro_modelos_simples()
+    ens = crear_ensemble(modelos)
+    assert hasattr(ens, 'predict') and hasattr(ens, 'predict_proba')

@@ -26,7 +26,7 @@
 16. **✅ Épica Q · Calidad estadística** — hecho (2026-06-26). Rigor estadístico 4/10 → 7/10: IC95% bootstrap en métricas, baseline ELO-crudo, MOV + K-schedule en ELO, calibración automática sigmoid/isotonic, notebook honesto. 132 tests.
 17. **✅ M4 · Permutation importance** — hecho. `permutation_importancia` + `graficar_permutation_importance` en `src/evaluate.py`. 140 tests.
 18. **✅ I8** — `crear_dataset_visual` vectorizado. 142 tests.
-19. **▶️ E5** — Ensemble soft-voting (siguiente).
+19. **✅ E5** — Ensemble soft-voting. `SoftVotingEnsemble` + `crear_ensemble`. 148 tests.
 
 Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar este roadmap al cerrar.
 
@@ -100,7 +100,7 @@ Registry de modelos + endpoints de comparación. Detalle en sección dedicada de
 - [x] **E2 ·** ✅ `main.py` exporta `modelos_atp.pkl` (`{nombre: modelo_calibrado}`) + `metrics_atp.pkl` (`{nombre: {accuracy, log_loss, brier, auc}}`). `modelo_atp.pkl` (GBM calibrado) se mantiene para compatibilidad con `app.py`.
 - [x] **E3 ·** ✅ API multi-modelo: `GET /api/models` (lista ordenada por log-loss), `?model=` en `/api/predict` (valida nombre, 400 si inválido), `GET /api/predict_all` (probas de los 4 modelos para el mismo partido). Helper `_predecir_con()` evita duplicar lógica de features. 13 tests nuevos en `tests/test_api_endpoints.py`. 77 tests total.
 - [x] **E4 ·** Frontend: hecho. Panel colapsable "comparar los 4 modelos" con probabilidades del partido (`/api/predict_all`) + tabla de métricas test 2026 (`/api/models`), fila `gbm` resaltada. Badge de jugador desconocido (`unknown`). Decisión: sin dropdown de modelo en el formulario (gbm fijo); la comparación vive en el panel.
-- [ ] **E5 ·** Ensemble soft-voting como modelo extra.
+- [x] **E5 ·** ✅ `SoftVotingEnsemble` + `crear_ensemble` en `src/train.py`. Promedia `predict_proba` de los 4 modelos calibrados. Añadido a `todos_modelos['ensemble']` en `main.py` → incluido en pkl, `/api/models`, `/api/predict_all`. 6 tests nuevos. 148 tests total.
 
 ---
 

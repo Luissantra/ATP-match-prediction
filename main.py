@@ -4,7 +4,7 @@ import pandas as pd
 from src.elo import calcular_elos_historicos
 from src.data_processing import preparar_datos_entrenamiento
 from src.features import FEATURES
-from src.train import calibrar_modelo, comparar_calibracion, entrenar_todos_los_modelos
+from src.train import calibrar_modelo, comparar_calibracion, entrenar_todos_los_modelos, crear_ensemble
 from src.evaluate import (
     evaluar, evaluar_con_ic, evaluar_baseline_elo, evaluar_y_graficar,
     graficar_learning_curve, graficar_reliability_diagram, graficar_histograma_probas,
@@ -53,6 +53,9 @@ if __name__ == "__main__":
     todos_modelos, base_estimators, cv_scores = entrenar_todos_los_modelos(
         X_train_arr, y_train_arr, dates=dates_train
     )
+
+    # Ensemble soft-voting sobre los 4 modelos calibrados (E5)
+    todos_modelos['ensemble'] = crear_ensemble(todos_modelos)
 
     # GBM calibrado = modelo principal; base sin calibrar para plots de importancia
     modelo_base_gbm = base_estimators['gbm']
