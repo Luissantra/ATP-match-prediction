@@ -54,8 +54,12 @@ Pipeline en dos etapas separadas. La **fuente única de verdad del vector de fea
 - Valida: superficie ∈ {Hard, Clay, Grass}, `player_a != player_b`, params presentes.
 
 **Frontend (`templates/index.html`, `static/`)**
-- SPA sin framework. `static/script.js` llama a los endpoints REST. `static/style.css` con estilos dinámicos por superficie.
-- Pendiente (G1): el frontend aún no envía `tourney_level` (la API ya lo acepta).
+- SPA sin framework (vanilla). Diseño "court-side telemetry": identidad por superficie (fondo color de pista + líneas de cancha como divisores), tipografía Bricolage Grotesque / Inter / JetBrains Mono.
+- `static/format.js` — funciones puras de presentación (`normalizeFactor`, `formatDiff`, `formatRank`, `mergeModels`), patrón dual browser+node, testeadas con `node --test tests/format.test.mjs`. Expone funciones como globales **y** en `window.ATPFormat`; por eso `static/script.js` va envuelto en un IIFE (evita colisión de identificadores al hacer destructuring).
+- `static/script.js` — estado, fetch y render; usa `format.js`. Llama a `/api/predict`, `/api/predict_all` y `/api/models`.
+- Señales mostradas: barras divergentes de `features_debug` (a quién favorece cada factor; son diferencias de feature, no peso del modelo), barra de probabilidad como cancha vista desde arriba, panel colapsable comparar 4 modelos, badge de jugador desconocido (`unknown`).
+- Selectores: superficie (Hard/Clay/Grass) y nivel de torneo (G1 hecho: ATP 250/500/Masters/Grand Slam → keys de `LEVEL_MAP`).
+- Assets enlazados con `?v=N` (cache-busting); súbelo al cambiar CSS/JS.
 
 ## Métricas (test ciego 2026)
 
