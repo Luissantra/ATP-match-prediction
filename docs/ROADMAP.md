@@ -14,9 +14,9 @@
 4. **✅ I10 · Reliability diagram + histograma de probas** — hecho.
 5. **✅ G3 · Tests /api/predict** — hecho.
 6. **✅ I2 + I3 · rank cap + ELO separado** — hecho. FEATURES = 8. AUC 0.615→0.629, log-loss 0.683→0.674.
-7. **⏸ E4 · Frontend multi-modelo** — diferido hasta rediseño UI (N2).
-8. **⏸ E5 · Ensemble soft-voting** — diferido junto a E4.
-9. **▶️ N2 · Rediseño UI** — en espera de propuesta visual del usuario. Luego G1 (dropdown `tourney_level`).
+7. **✅ E4 · Frontend multi-modelo** — hecho. Panel colapsable "comparar modelos" (`/api/predict_all` + `/api/models`), badge jugador desconocido.
+8. **⏸ E5 · Ensemble soft-voting** — diferido.
+9. **✅ N2 · Rediseño UI** — hecho. Dirección "court-side telemetry" (identidad por superficie, barras divergentes de factores). Incluye G1 (`tourney_level`) y E4. Funciones puras en `static/format.js` (TDD `node --test`). Spec: `docs/superpowers/specs/2026-06-26-frontend-redesign-design.md`.
 10. **✅ M1 · ELO sin redondeo acumulado** — hecho. `actualizar_ratings` full-precision.
 11. **✅ M3 · `custom_tree.py` → `archive/`** — hecho.
 12. **✅ M5 · `test_label_balanced` exacto** — seed=42 fijo, assert 0.47.
@@ -49,7 +49,7 @@ Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar e
 
 ## Gaps detectados durante Fase 1 (valorados)
 
-- [ ] **G1 · Frontend no envía `tourney_level`** → la UI siempre usa el default (1). La API ya lo acepta. *Decisión: diferir* — es trabajo de UI (dropdown en `index.html` + `script.js`) y requiere verificación en navegador; no bloquea la calidad del modelo. Cerrar tras las fases P0.
+- [x] **G1 · Frontend no envía `tourney_level`** → hecho. Selector pill ATP 250/500/Masters/Grand Slam (keys de `LEVEL_MAP`); se envía a `/api/predict` y `/api/predict_all`.
 - [x] **G2 · `cargar_modelo` no valida `sklearn_version`** ✅ Resuelto (Fase 4). `app.verificar_version_sklearn()` avisa si la versión del pkl difiere de la instalada (3 tests). Cubre la mitad pendiente de **I4**.
 - [x] **G3 · Falta test de endpoint `/api/predict` vía `test_client`** ✅ Resuelto. Tests en `tests/test_api_endpoints.py`: superficie inválida, player_a/b faltantes, mismo jugador, jugador desconocido (defaults). 81 tests total.
 
@@ -75,7 +75,7 @@ Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar e
 ### Viz
 - [x] **I10 · Faltan 3 plots clave:** ✅ Resuelto. `graficar_reliability_diagram` e `graficar_histograma_probas` añadidas a `src/evaluate.py`; `graficar_learning_curve` ya existía. Las 3 se invocan desde `main.py`. 8 tests en `tests/test_evaluate.py`.
 - [ ] **N1 · Notebook didáctico** (`notebooks/atp_resumen.ipynb`) que resuma los puntos importantes del proyecto **sin tocar la parte web**: matemática del ELO híbrido (logística + actualización), simetrización del dataset (anti-leakage), las 6 features, CV temporal con embargo, y la lectura honesta de métricas (AUC/log-loss/Brier vs accuracy + learning curve). Objetivo portafolio/aprendizaje: narrativa + celdas ejecutables reusando `src/`.
-- [ ] **N2 · Actualizar los visuales de la web** (`templates/index.html`, `static/style.css`, `static/script.js`): refrescar el diseño/estética de la SPA y mostrar las nuevas señales ya disponibles en la API (`diff_h2h`, `diff_form`, `tourney_level_num` en `features_debug`) que hoy el frontend no pinta.
+- [x] **N2 · Actualizar los visuales de la web** (`templates/index.html`, `static/style.css`, `static/script.js`): hecho. Rediseño "court-side telemetry"; barras divergentes pintan `features_debug` (incl. `diff_h2h`, `diff_form`); corregido bug del campo obsoleto `diff_elo`. Lógica pura testeada en `static/format.js`.
 
 ---
 
@@ -95,7 +95,7 @@ Registry de modelos + endpoints de comparación. Detalle en sección dedicada de
 - [x] **E1 ·** ✅ `entrenar_todos_los_modelos(X, y, dates)` en `src/train.py`: LogReg, RF, GBM, XGBoost — cada uno con GridSearchCV(neg_log_loss) + CV temporal purgado + `calibrar_modelo`. 4 tests. `xgboost==3.2.0` en requirements.txt.
 - [x] **E2 ·** ✅ `main.py` exporta `modelos_atp.pkl` (`{nombre: modelo_calibrado}`) + `metrics_atp.pkl` (`{nombre: {accuracy, log_loss, brier, auc}}`). `modelo_atp.pkl` (GBM calibrado) se mantiene para compatibilidad con `app.py`.
 - [x] **E3 ·** ✅ API multi-modelo: `GET /api/models` (lista ordenada por log-loss), `?model=` en `/api/predict` (valida nombre, 400 si inválido), `GET /api/predict_all` (probas de los 4 modelos para el mismo partido). Helper `_predecir_con()` evita duplicar lógica de features. 13 tests nuevos en `tests/test_api_endpoints.py`. 77 tests total.
-- [ ] **E4 ·** Frontend: dropdown de modelo, modo "comparar" (barras lado a lado → desacuerdo = incertidumbre), tabla de métricas test 2026.
+- [x] **E4 ·** Frontend: hecho. Panel colapsable "comparar los 4 modelos" con probabilidades del partido (`/api/predict_all`) + tabla de métricas test 2026 (`/api/models`), fila `gbm` resaltada. Badge de jugador desconocido (`unknown`). Decisión: sin dropdown de modelo en el formulario (gbm fijo); la comparación vive en el panel.
 - [ ] **E5 ·** Ensemble soft-voting como modelo extra.
 
 ---
