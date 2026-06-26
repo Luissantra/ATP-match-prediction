@@ -6,18 +6,18 @@
 
 ## 🧭 Próximos pasos (orden recomendado)
 
-**P0 críticos (C1-C4) + I1 + Épica E1-E3 resueltos** (sesión 2026-06-24).
+**P0 críticos (C1-C4) + I1 + Épica E1-E3 + I10 + G3 + I2 + I3 resueltos** (sesiones 2026-06-24 / 2026-06-26).
 
 1. **✅ I1 · Calibración** — hecho.
 2. **✅ E1+E2 · Multi-modelo entrenamiento + artefactos** — hecho.
-3. **✅ E3 · API multi-modelo** (`/api/models`, `?model=`, `/api/predict_all`) — hecho. 77 tests total.
-4. **⏸ E4 · Frontend multi-modelo** — diferido hasta rediseño UI (N2). Implementar tras aprobación del nuevo diseño.
-5. **⏸ E5 · Ensemble soft-voting** — diferido junto a E4 (se presenta en la comparación de modelos).
-6. **▶️ N2 · Rediseño UI** — en espera de propuesta visual del usuario. Luego G1 (dropdown `tourney_level`).
-7. **I10 · Plots calibración + histograma de probas** — near-term.
-8. **I2 (rank=999), I3 (peso ELO aprendido), M4 (SHAP)** — mejoras de modelado.
-9. **N1 · Notebook didáctico** — portafolio.
-10. **M1, M3, M5** — limpieza menor.
+3. **✅ E3 · API multi-modelo** — hecho. 92 tests total.
+4. **✅ I10 · Reliability diagram + histograma de probas** — hecho.
+5. **✅ G3 · Tests /api/predict** — hecho.
+6. **✅ I2 + I3 · rank cap + ELO separado** — hecho. FEATURES = 8. AUC 0.615→0.629, log-loss 0.683→0.674.
+7. **⏸ E4 · Frontend multi-modelo** — diferido hasta rediseño UI (N2).
+8. **⏸ E5 · Ensemble soft-voting** — diferido junto a E4.
+9. **▶️ N2 · Rediseño UI** — en espera de propuesta visual del usuario. Luego G1 (dropdown `tourney_level`).
+10. **M4 (SHAP), N1 (notebook), M1/M3/M5** — siguiente tanda.
 
 Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar este roadmap al cerrar.
 
@@ -54,8 +54,8 @@ Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar e
 
 ### Modelo
 - [x] **I1 · GBM sin calibrar.** ✅ `calibrar_modelo(base, X, y, dates, method)` en `src/train.py`; usa `purged_time_series_splits` para el fold de calibración. `main.py` imprime comparación base→calibrado en test ciego y exporta el calibrado.
-- [ ] **I2 · `rank=999` genera outliers en `diff_rank`** (wildcard vs Top1 → ~998). Añadir indicador `is_unranked` + cap (≈250), o usar `log(rank)`.
-- [ ] **I3 · ELO híbrido 50/50 arbitrario.** Pasar `elo_general` y `elo_superficie` como 2 features y dejar que el GBM aprenda el peso; o validar el 0.5 por grid.
+- [x] **I2 · `rank=999` genera outliers en `diff_rank`** ✅ Resuelto. `RANK_CAP=250` en `src/features.py`. Cap aplicado en `data_processing.py` y `app.py`. Feature `is_unranked` añadida (∈ {-1,0,1}). FEATURES pasa de 6 a 8.
+- [x] **I3 · ELO híbrido 50/50 arbitrario.** ✅ Resuelto. `elo.py` emite `elo_winner/loser_general` y `elo_winner/loser_sup`. `diff_elo` reemplazada por `diff_elo_general` + `diff_elo_sup`. Reentrenado: AUC 0.615→0.629, log-loss 0.683→0.674 (GBM test ciego 2026). 92 tests.
 
 ### Producción
 - [~] **I4 · Pickle inseguro + riesgo de versión sklearn.** Versión: ✅ se guarda (Fase 1) y se **valida al cargar** (Fase 4, G2). Pendiente solo lo de seguridad: evaluar `skops` para carga sin ejecución de código arbitrario (riesgo bajo con artefactos propios).
