@@ -22,7 +22,9 @@
 12. **✅ M5 · `test_label_balanced` exacto** — seed=42 fijo, assert 0.47.
 13. **✅ I5 · Jugador desconocido → `"unknown": true`** — hecho. 2 tests nuevos.
 14. **✅ I6 · Validar columnas CSV** — hecho. `ValueError` descriptivo. 2 tests nuevos.
-15. **▶️ M4 (SHAP), N1 (notebook)** — siguiente tanda.
+15. **✅ N1 · Notebook didáctico** — hecho. `notebooks/atp_resumen.ipynb` (ELO, híbrido, simetrización, 8 features, CV con embargo, métricas honestas).
+16. **▶️ Épica Q · Calidad estadística** — siguiente tanda. Revisión experta 2026-06-26 (`docs/REVISION-CALIDAD-2026-06-26.md`): el modelado no está exprimido y las conclusiones ignoran n≈137. Orden: **Q1 (baseline + IC) → Q2 (ELO con MOV/K) → Q5 (notebook) → Q3/Q4/Q6**.
+17. **▶️ M4 (SHAP)** — tras Q (la importancia robusta encaja con la épica de calidad).
 
 Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar este roadmap al cerrar.
 
@@ -74,7 +76,7 @@ Convención de trabajo: **TDD estricto, un commit por ítem/fase**, actualizar e
 
 ### Viz
 - [x] **I10 · Faltan 3 plots clave:** ✅ Resuelto. `graficar_reliability_diagram` e `graficar_histograma_probas` añadidas a `src/evaluate.py`; `graficar_learning_curve` ya existía. Las 3 se invocan desde `main.py`. 8 tests en `tests/test_evaluate.py`.
-- [ ] **N1 · Notebook didáctico** (`notebooks/atp_resumen.ipynb`) que resuma los puntos importantes del proyecto **sin tocar la parte web**: matemática del ELO híbrido (logística + actualización), simetrización del dataset (anti-leakage), las 6 features, CV temporal con embargo, y la lectura honesta de métricas (AUC/log-loss/Brier vs accuracy + learning curve). Objetivo portafolio/aprendizaje: narrativa + celdas ejecutables reusando `src/`.
+- [x] **N1 · Notebook didáctico** ✅ Hecho. `notebooks/atp_resumen.ipynb`: matemática del ELO (logística + actualización), ELO híbrido, simetrización (anti-leakage), las **8** features (no 6 — actualizado tras I2/I3), CV temporal con embargo, lectura honesta de métricas (AUC/log-loss/Brier vs accuracy + learning curve). Narrativa + celdas ejecutables reusando `src/`. Pendiente menor: ver Q5 (no enseña IC/baseline ELO-crudo, métricas no coinciden con producción).
 - [x] **N2 · Actualizar los visuales de la web** (`templates/index.html`, `static/style.css`, `static/script.js`): hecho. Rediseño "court-side telemetry"; barras divergentes pintan `features_debug` (incl. `diff_h2h`, `diff_form`); corregido bug del campo obsoleto `diff_elo`. Lógica pura testeada en `static/format.js`.
 
 ---
@@ -97,6 +99,24 @@ Registry de modelos + endpoints de comparación. Detalle en sección dedicada de
 - [x] **E3 ·** ✅ API multi-modelo: `GET /api/models` (lista ordenada por log-loss), `?model=` en `/api/predict` (valida nombre, 400 si inválido), `GET /api/predict_all` (probas de los 4 modelos para el mismo partido). Helper `_predecir_con()` evita duplicar lógica de features. 13 tests nuevos en `tests/test_api_endpoints.py`. 77 tests total.
 - [x] **E4 ·** Frontend: hecho. Panel colapsable "comparar los 4 modelos" con probabilidades del partido (`/api/predict_all`) + tabla de métricas test 2026 (`/api/models`), fila `gbm` resaltada. Badge de jugador desconocido (`unknown`). Decisión: sin dropdown de modelo en el formulario (gbm fijo); la comparación vive en el panel.
 - [ ] **E5 ·** Ensemble soft-voting como modelo extra.
+
+---
+
+## Épica — Calidad estadística (revisión 2026-06-26)
+
+Detalle y severidades en `docs/REVISION-CALIDAD-2026-06-26.md`. El problema no es la ingeniería (8/10) sino el rigor estadístico (4/10): ELO sin exprimir y conclusiones que ignoran n≈137.
+
+### Prioridad alta
+- [ ] **Q1 · 🔴 Baseline ELO-crudo + IC en métricas.** Añadir baseline = log-loss/AUC de `calcular_expectativa(diff_elo)` sola; reportar **bootstrap IC95%** (y DeLong para AUC) en toda métrica de test. Reescribir los claims del roadmap que comparan AUC/log-loss entre modelos para reflejar que con n≈137 las diferencias caen dentro del ruido (±0.08–0.09 en AUC). *Mata el "improvement theatre".* (R1+R2)
+- [ ] **Q2 · 🟠 ELO infrautilizado → subir AUC.** AUC 0.62 está por debajo de la literatura ELO-tenis (~0.66–0.70). Atacar: (a) **margin-of-victory** (sets/games) en la actualización; (b) **K provisional/schedule** (K alto para debutantes, decay); (c) revisar cold-start de ELO superficie (converge lento con K=32 y pocos partidos/jugador). Medir cada cambio con Q1. (R3)
+
+### Prioridad media
+- [ ] **Q3 · 🟠 Separar las causas del gap CV/test.** El gap 0.620→0.683 mezcla selection bias del `best_score_`, sesgo estacional de 2026 parcial y shift real. Cuantificar por separado (p. ej. nested CV para quitar el optimismo de GridSearch; comparar distribución de superficie/nivel train vs 2026). Bajar el tono de "distribution shift confirmado" a "consistente con". (R4)
+- [ ] **Q4 · 🟡 Calibración: sigmoid vs isotonic.** Isotonic sobreajusta en folds TS purgados pequeños. Comparar `method="sigmoid"` (Platt) por log-loss y elegir con evidencia. (R5)
+
+### Notebook + higiene
+- [ ] **Q5 · 🟠 Notebook — honestidad métrica real.** En `notebooks/atp_resumen.ipynb` §7: (a) enseñar IC/bootstrap del AUC y mencionar n≈137; (b) añadir celda de baseline ELO-crudo vs modelo; (c) aviso arriba de que las métricas no coinciden con producción (usa `AÑOS=[2022–2026]` + grid reducido); (d) dibujar `graficar_reliability_diagram`. (R7+R8+R9+R10)
+- [ ] **Q6 · 🟡 RNG global → local.** `np.random.seed(42)` global en `data_processing.py` (`preparar_datos_entrenamiento`, `crear_dataset_visual`) → `np.random.default_rng(42)`. Solapa con I8. (R6)
 
 ---
 
