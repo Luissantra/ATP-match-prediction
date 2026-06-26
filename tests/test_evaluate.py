@@ -81,3 +81,55 @@ def test_histograma_probas_crea_archivo():
             assert os.path.exists("plots/histograma_probas.png")
         finally:
             os.chdir(orig_dir)
+
+
+# --- Tests Q1: bootstrap_ic95 + evaluar_con_ic ---
+
+from src.evaluate import bootstrap_ic95, evaluar_con_ic
+
+
+def _datos_bootstrap():
+    rng = np.random.default_rng(0)
+    y = rng.integers(0, 2, size=200)
+    proba = np.clip(y * 0.6 + rng.uniform(-0.2, 0.2, size=200), 0.01, 0.99)
+    return y, proba
+
+
+def test_bootstrap_ic95_keys():
+    y, proba = _datos_bootstrap()
+    ic = bootstrap_ic95(y, proba, metric='auc', n_iter=200, seed=42)
+    assert set(ic.keys()) == {'mean', 'lower', 'upper'}
+
+
+def test_bootstrap_ic95_bounds():
+    y, proba = _datos_bootstrap()
+    ic = bootstrap_ic95(y, proba, metric='auc', n_iter=200, seed=42)
+    assert 0.5 <= ic['lower'] <= ic['mean'] <= ic['upper'] <= 1.0
+
+
+def test_bootstrap_ic95_log_loss():
+    y, proba = _datos_bootstrap()
+    ic = bootstrap_ic95(y, proba, metric='log_loss', n_iter=200, seed=42)
+    assert ic['lower'] > 0 and ic['lower'] <= ic['mean'] <= ic['upper']
+
+
+def test_bootstrap_ic95_brier():
+    y, proba = _datos_bootstrap()
+    ic = bootstrap_ic95(y, proba, metric='brier', n_iter=200, seed=42)
+    assert 0 <= ic['lower'] <= ic['mean'] <= ic['upper'] <= 1.0
+
+
+def test_bootstrap_ic95_deterministic():
+    y, proba = _datos_bootstrap()
+    r1 = bootstrap_ic95(y, proba, n_iter=100, seed=7)
+    r2 = bootstrap_ic95(y, proba, n_iter=100, seed=7)
+    assert r1 == r2
+
+
+def test_evaluar_con_ic_has_ic_keys():
+    X = np.array([[-2.], [-1.], [1.], [2.]])
+    y = np.array([0, 0, 1, 1])
+    modelo = LogisticRegression().fit(X, y)
+    m = evaluar_con_ic(modelo, X, y, n_iter=50, seed=42)
+    assert 'auc_ic' in m and 'log_loss_ic' in m and 'brier_ic' in m
+    assert set(m['auc_ic'].keys()) == {'mean', 'lower', 'upper'}

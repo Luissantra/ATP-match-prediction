@@ -35,6 +35,48 @@ def evaluar(modelo, X, y):
     }
 
 
+def bootstrap_ic95(y_true, proba, metric='auc', n_iter=1000, seed=42):
+    """
+    Bootstrap IC95% para una métrica escalar.
+    metric ∈ {'auc', 'log_loss', 'brier'}.
+    Con n≈137 el IC95% del AUC ≈ ±0.08-0.09; diferencias entre modelos
+    suelen caer dentro del ruido → evitar claims de mejora sin IC.
+    """
+    _fns = {
+        'auc':      lambda yt, yp: roc_auc_score(yt, yp),
+        'log_loss': lambda yt, yp: log_loss(yt, yp, labels=[0, 1]),
+        'brier':    lambda yt, yp: brier_score_loss(yt, yp),
+    }
+    fn = _fns[metric]
+    y_arr = np.asarray(y_true)
+    p_arr = np.asarray(proba)
+    rng = np.random.default_rng(seed)
+    n = len(y_arr)
+    scores = []
+    for _ in range(n_iter):
+        idx = rng.integers(0, n, size=n)
+        scores.append(fn(y_arr[idx], p_arr[idx]))
+    scores = np.array(scores)
+    return {
+        'mean':  float(np.mean(scores)),
+        'lower': float(np.percentile(scores, 2.5)),
+        'upper': float(np.percentile(scores, 97.5)),
+    }
+
+
+def evaluar_con_ic(modelo, X, y, n_iter=1000, seed=42):
+    """
+    Extiende evaluar() añadiendo IC95% bootstrap para AUC, log-loss y Brier.
+    Con n≈137 las diferencias de AUC < 0.08 son ruido, no mejora demostrable.
+    """
+    proba = modelo.predict_proba(X)[:, 1]
+    base = evaluar(modelo, X, y)
+    base['auc_ic']      = bootstrap_ic95(y, proba, 'auc',      n_iter, seed)
+    base['log_loss_ic'] = bootstrap_ic95(y, proba, 'log_loss', n_iter, seed)
+    base['brier_ic']    = bootstrap_ic95(y, proba, 'brier',    n_iter, seed)
+    return base
+
+
 def evaluar_y_graficar(modelo, X_test, y_test, df_test, features,
                        modelo_para_importancia=None):
     preds = modelo.predict(X_test)
