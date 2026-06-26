@@ -97,6 +97,23 @@ def test_elo_general_y_sup_son_distintos(tmp_path):
     assert row1['elo_winner_general'] != row1['elo_winner_sup']
 
 
+def test_csv_con_columna_faltante_lanza_error_claro(tmp_path):
+    """CSV sin 'winner_name' debe lanzar ValueError descriptivo, no KeyError crudo."""
+    df = _make_df().drop(columns=['winner_name'])
+    df.to_csv(tmp_path / "2024.csv", index=False)
+    with pytest.raises(ValueError, match="winner_name"):
+        calcular_elos_historicos(str(tmp_path), [2024])
+
+
+def test_csv_con_varias_columnas_faltantes_lista_todas(tmp_path):
+    """El error debe mencionar todas las columnas ausentes."""
+    df = _make_df().drop(columns=['winner_name', 'loser_name'])
+    df.to_csv(tmp_path / "2024.csv", index=False)
+    with pytest.raises(ValueError, match="winner_name") as exc_info:
+        calcular_elos_historicos(str(tmp_path), [2024])
+    assert "loser_name" in str(exc_info.value)
+
+
 def test_devuelve_h2h_y_form_finales(tmp_path):
     """Para inferencia: el motor debe exportar el estado final de H2H y forma."""
     df = _make_df()

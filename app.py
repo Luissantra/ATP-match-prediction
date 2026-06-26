@@ -138,6 +138,9 @@ def _predecir_con(modelo_usado, player_a, player_b, surface, tourney_level):
     prob_a = float(probs[1])
     prob_b = float(probs[0])
 
+    unknown_a = player_a not in elo_general
+    unknown_b = player_b not in elo_general
+
     return {
         "player_a": {
             "name": player_a,
@@ -147,6 +150,7 @@ def _predecir_con(modelo_usado, player_a, player_b, surface, tourney_level):
             "rank": int(rank_a) if rank_a != 999 else "Sin Ranking",
             "age": round(age_a, 1),
             "prob_victory": round(prob_a * 100, 1),
+            "unknown": unknown_a,
         },
         "player_b": {
             "name": player_b,
@@ -156,6 +160,7 @@ def _predecir_con(modelo_usado, player_a, player_b, surface, tourney_level):
             "rank": int(rank_b) if rank_b != 999 else "Sin Ranking",
             "age": round(age_b, 1),
             "prob_victory": round(prob_b * 100, 1),
+            "unknown": unknown_b,
         },
         "surface": surface,
         "features_debug": {

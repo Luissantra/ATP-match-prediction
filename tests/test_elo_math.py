@@ -68,3 +68,12 @@ class TestActualizarRatings:
         result = actualizar_ratings(1500, 1500, resultado_A=1)
         assert len(result) == 2
         assert all(isinstance(r, float) for r in result)
+
+    def test_no_redondea_internamente(self):
+        # Con ratings distintos, el delta tiene muchos decimales.
+        # actualizar_ratings NO debe redondear: debe devolver full precision.
+        a, b = 1500.0, 1520.0
+        nuevo_a, _ = actualizar_ratings(a, b, resultado_A=1)
+        e_a = 1 / (1 + 10 ** ((b - a) / 400))
+        delta = 32 * (1 - e_a)
+        assert nuevo_a == pytest.approx(a + delta, abs=1e-9)
