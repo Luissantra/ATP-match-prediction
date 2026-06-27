@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=7">
+    <link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body class="surface-hard">
 
@@ -124,6 +124,15 @@
                 <p class="winner-conf" id="winner-conf">—</p>
             </div>
 
+            <!-- Gráfica ELO por superficie -->
+            <div class="elo-chart">
+                <div class="block-head">
+                    <h3>ELO por superficie</h3>
+                    <p class="block-sub">Comparativa de ambos jugadores en las tres superficies del circuito.</p>
+                </div>
+                <div id="elo-chart-body"></div>
+            </div>
+
             <!-- Por qué: diferencias por factor (barras divergentes) -->
             <div class="factors">
                 <div class="block-head">
@@ -182,7 +191,7 @@
 
     </div>
 
-    <script src="/static/format.js?v=7"></script>
-    <script src="/static/script.js?v=7"></script>
+    <script src="/static/format.js?v=8"></script>
+    <script src="/static/script.js?v=8"></script>
 </body>
 </html>

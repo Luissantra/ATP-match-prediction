@@ -497,6 +497,55 @@ body.surface-grass .court-bg {
 .fbar .fval.on-a { right: calc(50% + 8px); }
 .fbar .fval.on-b { left: calc(50% + 8px); }
 
+/* ---- Gráfica ELO por superficie ---- */
+.elo-surface-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 18px;
+}
+.elo-surface-label {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 4px;
+}
+.elo-bar-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 70px;
+    align-items: center;
+    gap: 10px;
+}
+.elo-bar-name {
+    font-size: 0.78rem;
+    color: var(--text-mut);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.elo-bar-track {
+    height: 14px;
+    background: var(--line-faint);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.elo-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.7s var(--ease);
+}
+.elo-bar-fill.player-a { background: var(--line); opacity: 0.75; }
+.elo-bar-fill.player-b { background: var(--accent); opacity: 0.9; transition: width 0.7s var(--ease), background var(--t); }
+.elo-bar-val {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--text-mut);
+    text-align: right;
+    white-space: nowrap;
+}
+
 /* ---- Comparativa numérica ---- */
 .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .cmp-card {
