@@ -1,0 +1,9 @@
+# Dependencias de RUNTIME del servidor web (app.py).
+# No incluye matplotlib/seaborn: solo se usan en entrenamiento/EDA (main.py, visualize.py, src/evaluate.py).
+# Mantener las versiones en sync con requirements.txt.
+flask==3.1.3
+flask-cors==6.0.5
+gunicorn==23.0.0
+numpy==2.4.6
+pandas==3.0.3
+scikit-learn==1.9.0
