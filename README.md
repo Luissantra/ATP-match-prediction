@@ -89,6 +89,7 @@ app.py                  # Flask: /api/players, /api/predict, /api/model
 main.py                 # Pipeline: ELO → dataset → entrenar LogReg → evaluar → exportar
 visualize.py            # EDA (evolución ELO Top 5 + correlación de features)
 requirements.txt        # Dependencias pineadas
+Dockerfile              # Imagen para HuggingFace Spaces (gunicorn, puerto PORT)
 ```
 
 ---
@@ -124,6 +125,21 @@ python -m pytest -q
 
 ---
 
+## Despliegue (Docker / HuggingFace Spaces)
+
+El repositorio incluye `Dockerfile` y la cabecera YAML de HuggingFace Spaces (`sdk: docker`) en este README. La app lee el puerto de la variable `PORT` (default 8000 local, 7860 en HF).
+
+```bash
+# Build y run local
+docker build -t atp-forecast .
+docker run --rm -p 7860:7860 atp-forecast
+# → http://localhost:7860
+```
+
+Para HuggingFace Spaces: crear un Space de tipo *Docker* y empujar el repo (los `.pkl` van versionados, ~430 KB en total, sin necesidad de Git LFS). El Space construye la imagen y sirve con gunicorn automáticamente.
+
+---
+
 ## API
 
 ```
@@ -133,6 +149,8 @@ GET /api/model                                            → métricas test 202
 ```
 
 Parámetros: `surface` ∈ {Hard, Clay, Grass}.
+
+La respuesta de `/api/predict` incluye, por jugador, `elo_surfaces` con el ELO en las tres superficies (`{"Hard": …, "Clay": …, "Grass": …}`) para la gráfica comparativa del frontend, además de `elo_general`, `elo_surface` (la elegida), `elo_hybrid`, `rank`, `age`, `prob_victory` y `unknown`.
 
 ---
 
