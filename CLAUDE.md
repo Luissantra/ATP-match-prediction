@@ -24,6 +24,9 @@ python app.py
 # Servidor de PRODUCCIÓN (WSGI, varios workers)
 gunicorn -w 4 -b 0.0.0.0:8000 app:app
 
+# Imagen Docker (HuggingFace Spaces). Lee puerto de PORT (default 7860 en la imagen)
+docker build -t atp-forecast . && docker run --rm -p 7860:7860 atp-forecast
+
 # Generar visualizaciones EDA y evolución ELO Top 5
 python visualize.py
 
@@ -47,8 +50,9 @@ Pipeline en dos etapas separadas. La **fuente única de verdad del vector de fea
 7. `main.py` — orquesta. Split: train 2020–2024, test principal 2025 (n≈2861), eval secundaria 2026 (n≈137, referencial). Exporta `modelos_atp.pkl` (LogReg calibrado, objeto único), `metrics_atp.pkl`, `stats_jugadores.pkl` (incluye `coeficientes`).
 
 **Servidor web (`app.py`)**
-- Flask en puerto 8000. Estado global de solo lectura cargado de los `.pkl` (apto para varios workers gunicorn).
+- Flask. Puerto configurable vía env `PORT` (default 8000 local; la imagen Docker fija 7860 para HF Spaces). Estado global de solo lectura cargado de los `.pkl` (apto para varios workers gunicorn).
 - Endpoints: `GET /api/players` (lista por ELO), `GET /api/predict?player_a=X&player_b=Y&surface=Z`, `GET /api/model` (métricas + coeficientes).
+- `/api/predict` devuelve por jugador `elo_surfaces` (ELO en Hard/Clay/Grass) para la gráfica multi-superficie del frontend, además de `elo_general`/`elo_surface`/`elo_hybrid`/`rank`/`age`/`prob_victory`/`unknown`.
 - `construir_features()` reconstruye las 5 features con la misma semántica que el entrenamiento. La inferencia sirve numpy (evita warning de feature-names).
 - `verificar_version_sklearn()` avisa si el pkl se entrenó con otra versión.
 - Valida: superficie ∈ {Hard, Clay, Grass}, `player_a != player_b`, params presentes.
@@ -57,9 +61,10 @@ Pipeline en dos etapas separadas. La **fuente única de verdad del vector de fea
 - SPA sin framework (vanilla). Diseño "court-side telemetry": identidad por superficie (fondo color de pista + líneas de cancha como divisores), tipografía Bricolage Grotesque / Inter / JetBrains Mono.
 - `static/format.js` — funciones puras de presentación (`normalizeFactor`, `formatDiff`, `formatRank`), patrón dual browser+node, testeadas con `node --test tests/format.test.mjs`. Expone funciones como globales **y** en `window.ATPFormat`; por eso `static/script.js` va envuelto en un IIFE (evita colisión de identificadores al hacer destructuring).
 - `static/script.js` — estado, fetch y render; usa `format.js`. Llama a `/api/predict` y `/api/model`.
-- Señales mostradas: barras divergentes de `features_debug` (a quién favorece cada factor; son diferencias de feature, no peso del modelo), barra de probabilidad como cancha vista desde arriba, panel colapsable "Detalle del modelo" (métricas + coeficientes/odds-ratio), badge de jugador desconocido (`unknown`).
+- Señales mostradas: barra de probabilidad como cancha vista desde arriba, gráfica ELO multi-superficie (`renderEloChart`, barras agrupadas Hard/Clay/Grass × 2 jugadores desde `elo_surfaces`), barras divergentes de `features_debug` (a quién favorece cada factor; son diferencias de feature, no peso del modelo), panel colapsable "Detalle del modelo" (métricas + coeficientes/odds-ratio; barras OR clamped a 50% del track), badge de jugador desconocido (`unknown`).
+- Fondo por superficie: `.court-bg` con textura distinta (`body.surface-hard/clay/grass`): rejilla ortogonal / trama diagonal / franjas de césped.
 - Selector: superficie (Hard/Clay/Grass).
-- Assets enlazados con `?v=N` (cache-busting); súbelo al cambiar CSS/JS.
+- Assets enlazados con `?v=N` (cache-busting; actual `v=8`); incrementa N **en los tres** (style.css, format.js, script.js) al cambiar CSS/JS.
 
 ## Métricas (test ciego 2025, n=2861)
 

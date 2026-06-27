@@ -1,0 +1,25 @@
+# Entornos y caches
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Datos de entrenamiento (la app sirve solo desde models/*.pkl)
+data/
+
+# Git y herramientas de desarrollo
+.git/
+.gitignore
+.claude/
+docs/
+archive/
+notebooks/
+tests/
+
+# Artefactos de visualización (no necesarios en runtime)
+plots/
+*.png
+
+# Sistema
+.DS_Store
