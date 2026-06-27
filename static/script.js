@@ -283,7 +283,7 @@ function renderModelInfo(info) {
         .sort((a, b) => Math.abs(b[1].coef) - Math.abs(a[1].coef));
     const maxAbs = coefs.reduce((mx, [, v]) => Math.max(mx, Math.abs(v.coef)), 1e-9);
     const coefRows = coefs.map(([k, v]) => {
-        const pct = (Math.abs(v.coef) / maxAbs) * 100;
+        const pct = (Math.abs(v.coef) / maxAbs) * 50;
         const towardA = v.coef >= 0;
         return `<div class="fbar">
             <span class="fname">${COEF_LABELS[k] || k}</span>
