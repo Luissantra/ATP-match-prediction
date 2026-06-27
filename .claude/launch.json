@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "flask-dev",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["app.py"],
+      "port": 8000
+    },
+    {
+      "name": "gunicorn-prod",
+      "runtimeExecutable": "gunicorn",
+      "runtimeArgs": ["-w", "4", "-b", "0.0.0.0:8000", "app:app"],
+      "port": 8000
+    }
+  ]
+}

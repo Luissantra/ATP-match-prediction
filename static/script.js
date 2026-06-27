@@ -201,6 +201,9 @@ function renderResults(res) {
     fillCompare('a', a);
     fillCompare('b', b);
 
+    // Gráfica ELO por superficie
+    renderEloChart(res.player_a, res.player_b);
+
     // Marcas de desconocido
     markUnknown(cardA, a.unknown);
     markUnknown(cardB, b.unknown);
@@ -283,7 +286,7 @@ function renderModelInfo(info) {
         .sort((a, b) => Math.abs(b[1].coef) - Math.abs(a[1].coef));
     const maxAbs = coefs.reduce((mx, [, v]) => Math.max(mx, Math.abs(v.coef)), 1e-9);
     const coefRows = coefs.map(([k, v]) => {
-        const pct = (Math.abs(v.coef) / maxAbs) * 100;
+        const pct = (Math.abs(v.coef) / maxAbs) * 50;
         const towardA = v.coef >= 0;
         return `<div class="fbar">
             <span class="fname">${COEF_LABELS[k] || k}</span>
@@ -299,6 +302,50 @@ function renderModelInfo(info) {
         <div class="coef-head"><strong>Coeficientes (odds-ratio por +1 desviación estándar)</strong></div>
         <div class="factor-bars">${coefRows}</div>
         <p class="models-note">OR &gt; 1 (verde) inclina hacia el Jugador A; OR &lt; 1 (rojo) hacia el B. Es el peso real del modelo, no la diferencia del partido.</p>`;
+}
+
+function renderEloChart(a, b) {
+    const container = document.getElementById('elo-chart-body');
+    container.innerHTML = '';
+
+    const SURF_META = [
+        { key: 'Hard',  label: 'DURA',    accent: '#2E9BE6' },
+        { key: 'Clay',  label: 'TIERRA',  accent: '#E0703A' },
+        { key: 'Grass', label: 'CÉSPED',  accent: '#5BB85B' },
+    ];
+
+    // Rango global para escala común
+    const allVals = SURF_META.flatMap(s => [a.elo_surfaces[s.key], b.elo_surfaces[s.key]]);
+    const minElo = Math.min(...allVals) - 50;
+    const maxElo = Math.max(...allVals) + 50;
+    const range = maxElo - minElo || 1;
+
+    SURF_META.forEach(({ key, label, accent }) => {
+        const eloA = a.elo_surfaces[key];
+        const eloB = b.elo_surfaces[key];
+        const pctA = ((eloA - minElo) / range) * 100;
+        const pctB = ((eloB - minElo) / range) * 100;
+
+        const group = document.createElement('div');
+        group.className = 'elo-surface-group';
+        group.innerHTML = `
+            <div class="elo-surface-label">${label}</div>
+            <div class="elo-bar-row">
+                <span class="elo-bar-name">${a.name.split(' ').slice(-1)[0]}</span>
+                <div class="elo-bar-track">
+                    <div class="elo-bar-fill player-a" style="width:${pctA.toFixed(1)}%"></div>
+                </div>
+                <span class="elo-bar-val">${eloA.toFixed(0)}</span>
+            </div>
+            <div class="elo-bar-row">
+                <span class="elo-bar-name">${b.name.split(' ').slice(-1)[0]}</span>
+                <div class="elo-bar-track">
+                    <div class="elo-bar-fill player-b" style="width:${pctB.toFixed(1)}%; background:${accent}"></div>
+                </div>
+                <span class="elo-bar-val">${eloB.toFixed(0)}</span>
+            </div>`;
+        container.appendChild(group);
+    });
 }
 
 })();

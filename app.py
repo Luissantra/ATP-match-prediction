@@ -127,11 +127,16 @@ def _predecir_con(modelo_usado, player_a, player_b, surface):
     unknown_a = player_a not in elo_general
     unknown_b = player_b not in elo_general
 
+    SURFACES = ('Hard', 'Clay', 'Grass')
+    elo_surfaces_a = {s: round(elo_superficie.get(s, {}).get(player_a, 1500.0), 1) for s in SURFACES}
+    elo_surfaces_b = {s: round(elo_superficie.get(s, {}).get(player_b, 1500.0), 1) for s in SURFACES}
+
     return {
         "player_a": {
             "name": player_a,
             "elo_general": round(gen_a, 1),
             "elo_surface": round(sup_a, 1),
+            "elo_surfaces": elo_surfaces_a,
             "elo_hybrid": round(elo_hybrid_a, 1),
             "rank": int(rank_a) if rank_a != 999 else "Sin Ranking",
             "age": round(age_a, 1),
@@ -142,6 +147,7 @@ def _predecir_con(modelo_usado, player_a, player_b, surface):
             "name": player_b,
             "elo_general": round(gen_b, 1),
             "elo_surface": round(sup_b, 1),
+            "elo_surfaces": elo_surfaces_b,
             "elo_hybrid": round(elo_hybrid_b, 1),
             "rank": int(rank_b) if rank_b != 999 else "Sin Ranking",
             "age": round(age_b, 1),
@@ -227,4 +233,5 @@ def predict():
 
 
 if __name__ == '__main__':
-    app.run(port=8000, debug=False)
+    port = int(os.environ.get('PORT', 8000))
+    app.run(host='0.0.0.0', port=port, debug=False)

@@ -50,16 +50,40 @@ body {
 }
 
 /* Fondo: textura sutil de cancha (líneas perspectiva tenue) */
+/* Base neutra (solo gradiente radial, sin líneas) */
 .court-bg {
     position: fixed;
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background:
-        radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 55%),
-        repeating-linear-gradient(180deg, transparent 0 119px, var(--line-faint) 119px 120px);
+    background: radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 55%);
     transition: background var(--t);
     opacity: 0.9;
+}
+
+/* Hard: rejilla ortogonal tenue (pista dura pintada) */
+body.surface-hard .court-bg {
+    background:
+        radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, #2E9BE6 18%, transparent) 0%, transparent 55%),
+        repeating-linear-gradient(90deg,  transparent 0 79px, rgba(244,244,236,0.045) 79px 80px),
+        repeating-linear-gradient(180deg, transparent 0 79px, rgba(244,244,236,0.045) 79px 80px);
+}
+
+/* Clay: trama diagonal cruzada (textura de arcilla) */
+body.surface-clay .court-bg {
+    background:
+        radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, #E0703A 20%, transparent) 0%, transparent 55%),
+        repeating-linear-gradient(135deg, transparent 0 3px, rgba(224,112,58,0.07) 3px 6px),
+        repeating-linear-gradient(45deg,  transparent 0 3px, rgba(224,112,58,0.05) 3px 6px);
+}
+
+/* Grass: franjas alternas (mower stripes) */
+body.surface-grass .court-bg {
+    background:
+        radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, #5BB85B 15%, transparent) 0%, transparent 55%),
+        repeating-linear-gradient(90deg,
+            transparent          0  24px,
+            rgba(20,80,30,0.10) 24px 48px);
 }
 
 .container {
@@ -472,6 +496,55 @@ body {
 }
 .fbar .fval.on-a { right: calc(50% + 8px); }
 .fbar .fval.on-b { left: calc(50% + 8px); }
+
+/* ---- Gráfica ELO por superficie ---- */
+.elo-surface-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 18px;
+}
+.elo-surface-label {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 4px;
+}
+.elo-bar-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 70px;
+    align-items: center;
+    gap: 10px;
+}
+.elo-bar-name {
+    font-size: 0.78rem;
+    color: var(--text-mut);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.elo-bar-track {
+    height: 14px;
+    background: var(--line-faint);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.elo-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.7s var(--ease);
+}
+.elo-bar-fill.player-a { background: var(--line); opacity: 0.75; }
+.elo-bar-fill.player-b { background: var(--accent); opacity: 0.9; transition: width 0.7s var(--ease), background var(--t); }
+.elo-bar-val {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--text-mut);
+    text-align: right;
+    white-space: nowrap;
+}
 
 /* ---- Comparativa numérica ---- */
 .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
