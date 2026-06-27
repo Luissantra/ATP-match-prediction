@@ -2,18 +2,17 @@
 
 > Backlog derivado de la revisión técnica 2026-06-24. **Backlog cerrado** (2026-06-26).
 > **Poda de minimalismo** (2026-06-26): ver sección abajo. 124 tests (pytest) + 4 (node).
-> **Nueva épica abierta** (2026-06-27): despliegue HuggingFace + pulido visual. Plan en `docs/superpowers/plans/2026-06-26-hf-deploy-visual-polish.md`.
+> **Épica deploy + visual (2026-06-27): RESUELTA.** Plan en `docs/superpowers/plans/2026-06-27-visual-polish-then-hf-deploy.md`.
 
-## Próximo — Épica deploy + visual (2026-06-27)
+## Resuelto — Épica deploy + visual (2026-06-27)
 
-**Prioridad P0:**
-- **D1** — `Dockerfile` + port configurable (`PORT` env var) para HuggingFace Spaces
-- **D2** — `README.md` con header YAML de HF Spaces (sdk: docker)
+Orden de ejecución: `V2 → V1 → V3 → D1 → D2`.
 
-**Prioridad P1 (visual):**
-- **V1** — Texturas de fondo diferenciadas por superficie: rejilla ortogonal (hard), trama diagonal (clay), franjas de césped segado (grass)
-- **V2** — Fix barras OR: clamp a 50% del track (`* 100` → `* 50`), `overflow: hidden` en `.ftrack`
-- **V3** — Gráfica ELO multi-superficie (Hard/Clay/Grass × 2 jugadores) en panel de resultados; requiere exponer `elo_surfaces` en `/api/predict`
+- **V2** — Fix barras OR: clamp a 50% del track (`* 100` → `* 50`). (`overflow: hidden` descartado: recortaba el overhang del eje central; el clamp ya impide el desbordamiento.)
+- **V1** — Texturas de fondo por superficie: rejilla ortogonal (hard), trama diagonal cruzada (clay), franjas de césped segado (grass).
+- **V3** — Gráfica ELO multi-superficie (Hard/Clay/Grass × 2 jugadores) en panel de resultados; backend expone `elo_surfaces` en `/api/predict`, frontend `renderEloChart`.
+- **D1** — `Dockerfile` + port configurable (`PORT` env var, default 8000 local / 7860 HF).
+- **D2** — `README.md` con header YAML de HF Spaces (`sdk: docker`).
 
 ## Estado final (post-poda)
 
