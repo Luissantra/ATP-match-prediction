@@ -64,7 +64,7 @@ Pipeline en dos etapas separadas. La **fuente única de verdad del vector de fea
 - Señales mostradas: barra de probabilidad como cancha vista desde arriba, gráfica ELO multi-superficie (`renderEloChart`, barras agrupadas Hard/Clay/Grass × 2 jugadores desde `elo_surfaces`), barras divergentes de `features_debug` (a quién favorece cada factor; son diferencias de feature, no peso del modelo), panel colapsable "Detalle del modelo" (métricas + coeficientes/odds-ratio; barras OR clamped a 50% del track), badge de jugador desconocido (`unknown`).
 - Fondo por superficie: `.court-bg` con textura distinta (`body.surface-hard/clay/grass`): rejilla ortogonal / trama diagonal / franjas de césped.
 - Selector: superficie (Hard/Clay/Grass).
-- Assets enlazados con `?v=N` (cache-busting; actual `v=10`); incrementa N **en los tres** (style.css, format.js, script.js) al cambiar CSS/JS.
+- Assets enlazados con `?v=N` (cache-busting; actual `v=11`); incrementa N **en los tres** (style.css, format.js, script.js) al cambiar CSS/JS.
 - Banner de vigencia (R4): `#model-disclaimer` tras el header; `loadDisclaimer()` lee `trained_through`/`tested_on` de `/api/model` (no hardcodea la fecha de corte en el HTML).
 
 ## Métricas (test ciego 2025, n=2861)

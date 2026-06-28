@@ -138,15 +138,11 @@ body.surface-grass .court-bg {
 /* Vigencia del modelo (R4): nota de honestidad sobre la fecha de corte. */
 .model-disclaimer {
     margin-top: 18px;
-    padding: 10px 14px;
-    border: 1px solid var(--line-dim);
-    border-left: 3px solid color-mix(in srgb, var(--accent) 60%, var(--line-dim));
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--accent) 6%, transparent);
     color: var(--text-mut);
     font-size: 0.82rem;
     line-height: 1.5;
     max-width: 64ch;
+    opacity: 0.85;
 }
 
 /* ============================ TARJETAS BASE ============================ */
