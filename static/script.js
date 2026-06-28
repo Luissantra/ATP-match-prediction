@@ -178,16 +178,36 @@ function renderResults(res) {
     const a = res.player_a, b = res.player_b;
 
     // Cancha (firma): territorio = probabilidad, red según prob A
-    document.getElementById('court-name-a').textContent = a.name;
-    document.getElementById('court-name-b').textContent = b.name;
-    document.getElementById('half-a').style.width = `${a.prob_victory}%`;
-    document.getElementById('half-b').style.width = `${b.prob_victory}%`;
+    const winA = res.predicted_winner === a.name;
+
+    const cnA = document.getElementById('court-name-a');
+    const cnB = document.getElementById('court-name-b');
+    cnA.textContent = a.name;
+    cnB.textContent = b.name;
+    cnA.classList.toggle('cn-winner', winA);
+    cnB.classList.toggle('cn-winner', !winA);
+
+    const halfA = document.getElementById('half-a');
+    const halfB = document.getElementById('half-b');
+    halfA.style.width = `${a.prob_victory}%`;
+    halfB.style.width = `${b.prob_victory}%`;
+    halfA.classList.toggle('is-winner', winA);
+    halfA.classList.toggle('is-loser', !winA);
+    halfB.classList.toggle('is-winner', !winA);
+    halfB.classList.toggle('is-loser', winA);
+
     document.getElementById('court-net').style.left = `${a.prob_victory}%`;
-    document.getElementById('court-pct-a').textContent = `${a.prob_victory}%`;
-    document.getElementById('court-pct-b').textContent = `${b.prob_victory}%`;
+
+    const pctA = document.getElementById('court-pct-a');
+    const pctB = document.getElementById('court-pct-b');
+    pctA.textContent = `${a.prob_victory}%`;
+    pctB.textContent = `${b.prob_victory}%`;
+    pctA.classList.toggle('is-winner', winA);
+    pctA.classList.toggle('is-loser', !winA);
+    pctB.classList.toggle('is-winner', !winA);
+    pctB.classList.toggle('is-loser', winA);
 
     // Ganador
-    const winA = res.predicted_winner === a.name;
     document.getElementById('winner-name').textContent = res.predicted_winner;
     const conf = winA ? a.prob_victory : b.prob_victory;
     document.getElementById('winner-conf').textContent = `Probabilidad estimada ${conf}% · modelo ${res.model_used || 'logreg'}`;
@@ -326,21 +346,24 @@ function renderEloChart(a, b) {
         const pctA = ((eloA - minElo) / range) * 100;
         const pctB = ((eloB - minElo) / range) * 100;
 
+        const winA = eloA >= eloB;
+        const fillW = `background:${accent}; opacity:0.9`;
+        const fillL = `background:var(--line); opacity:0.4`;
         const group = document.createElement('div');
         group.className = 'elo-surface-group';
         group.innerHTML = `
             <div class="elo-surface-label">${label}</div>
-            <div class="elo-bar-row">
+            <div class="elo-bar-row${winA ? ' surf-winner' : ''}" style="--surf-accent:${accent}">
                 <span class="elo-bar-name">${a.name.split(' ').slice(-1)[0]}</span>
                 <div class="elo-bar-track">
-                    <div class="elo-bar-fill player-a" style="width:${pctA.toFixed(1)}%"></div>
+                    <div class="elo-bar-fill" style="width:${pctA.toFixed(1)}%; ${winA ? fillW : fillL}"></div>
                 </div>
                 <span class="elo-bar-val">${eloA.toFixed(0)}</span>
             </div>
-            <div class="elo-bar-row">
+            <div class="elo-bar-row${!winA ? ' surf-winner' : ''}" style="--surf-accent:${accent}">
                 <span class="elo-bar-name">${b.name.split(' ').slice(-1)[0]}</span>
                 <div class="elo-bar-track">
-                    <div class="elo-bar-fill player-b" style="width:${pctB.toFixed(1)}%; background:${accent}"></div>
+                    <div class="elo-bar-fill" style="width:${pctB.toFixed(1)}%; ${!winA ? fillW : fillL}"></div>
                 </div>
                 <span class="elo-bar-val">${eloB.toFixed(0)}</span>
             </div>`;

@@ -21,6 +21,8 @@ App en producción. Pulir, ampliar funcionalidad y honestidad sobre los datos.
 - Afinar intensidad de texturas si en producción se ven flojas (clay/grass sutiles).
 - Pulir responsive en tablets (760–1024px), no solo móvil.
 - Posible: enlace/footer a HF + GitHub, favicon, og:image para compartir.
+- **Explicar por qué el modelo supera al ELO solo**: el modelo (AUC 0.709) supera al baseline ELO-híbrido (AUC 0.694) gracias a ranking, edad e `is_unranked`; el ELO puro no captura la señal de jugadores sin ranking ni la diferencia de edad. Añadir nota explicativa en "Detalle del modelo" (o tooltip) que lo articule al usuario.
+- **Reconsiderar el orden superficie → predicción**: el usuario elige superficie antes de ver los resultados, pero la app ya muestra ELO en las tres superficies independientemente. Evaluar si tiene más sentido mostrar primero la predicción general y que la superficie sea un filtro secundario, o mantener el flujo actual y justificar que la superficie sí afecta al modelo (las features `diff_elo_sup` e `is_unranked` dependen de ella).
 
 ### R3 — Funcionalidad: simular torneo
 - Simular un cuadro completo de un torneo actual (ATP 250/500/Masters/Grand Slam): el usuario elige torneo + superficie + lista de participantes (o seed real), y el sistema propaga probabilidades ronda a ronda hasta el campeón.

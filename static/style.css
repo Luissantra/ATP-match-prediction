@@ -376,7 +376,7 @@ body.surface-grass .court-bg {
     display: flex; justify-content: space-between;
     font-family: var(--display); font-weight: 700; font-size: 1.05rem;
 }
-.cn-b { color: var(--accent); transition: color var(--t); }
+.cn-winner { color: var(--accent); transition: color var(--t); }
 
 .court {
     position: relative;
@@ -386,12 +386,17 @@ body.surface-grass .court-bg {
     overflow: hidden;
     display: flex;
 }
-.court-half { height: 100%; transition: width 0.9s var(--ease); }
-.half-a { background: color-mix(in srgb, var(--line) 8%, transparent); width: 50%; }
-.half-b { background: color-mix(in srgb, var(--accent) 26%, transparent); width: 50%; transition: width 0.9s var(--ease), background var(--t); }
+.court-half { height: 100%; transition: width 0.9s var(--ease), background var(--t); }
+.half-a { width: 50%; }
+.half-b { width: 50%; }
+.court-half.is-winner { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+.court-half.is-loser  { background: color-mix(in srgb, var(--line) 7%, transparent); }
 
 .court-lines { position: absolute; inset: 0; pointer-events: none; }
 .court-lines .line { position: absolute; background: var(--line); opacity: 0.55; }
+/* pasillos de dobles (laterales de singles) */
+.singles-top   { top: 22%; left: 0; right: 0; height: 1px; }
+.singles-bot   { bottom: 22%; left: 0; right: 0; height: 1px; }
 /* líneas verticales (de fondo a fondo) */
 .baseline-a    { left: 7%;  top: 0; bottom: 0; width: 1px; }
 .baseline-b    { right: 7%; top: 0; bottom: 0; width: 1px; }
@@ -426,8 +431,10 @@ body.surface-grass .court-bg {
     z-index: 3;
     text-shadow: 0 2px 8px rgba(0,0,0,0.6);
 }
-.pct-a { left: 16px; color: var(--line); }
-.pct-b { right: 16px; color: var(--text); }
+.pct-a { left: 16px; }
+.pct-b { right: 16px; }
+.court-pct.is-winner { color: var(--line); }
+.court-pct.is-loser  { color: var(--text-mut); }
 
 /* ---- Ganador ---- */
 .winner { text-align: center; }
@@ -440,6 +447,7 @@ body.surface-grass .court-bg {
     font-size: clamp(1.8rem, 5vw, 2.6rem);
     letter-spacing: -0.02em;
     margin: 6px 0 4px;
+    color: var(--accent); transition: color var(--t);
 }
 .winner-conf { font-family: var(--mono); font-size: 0.9rem; color: var(--accent); transition: color var(--t); }
 
@@ -496,6 +504,9 @@ body.surface-grass .court-bg {
 }
 .fbar .fval.on-a { right: calc(50% + 8px); }
 .fbar .fval.on-b { left: calc(50% + 8px); }
+/* OR verde/rojo solo en la sección de coeficientes */
+.models-body .fval.on-a { color: #6BCB6B; }
+.models-body .fval.on-b { color: #E06060; }
 
 /* ---- Gráfica ELO por superficie ---- */
 .elo-surface-group {
@@ -545,6 +556,8 @@ body.surface-grass .court-bg {
     text-align: right;
     white-space: nowrap;
 }
+.elo-bar-row.surf-winner .elo-bar-name { color: var(--surf-accent); font-weight: 600; }
+.elo-bar-row.surf-winner .elo-bar-val  { color: var(--surf-accent); }
 
 /* ---- Comparativa numérica ---- */
 .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
