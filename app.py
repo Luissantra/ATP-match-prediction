@@ -10,6 +10,12 @@ from src.features import RANK_CAP, elo_hibrido, vector_from_features
 app = Flask(__name__, template_folder='templates', static_folder='static')
 CORS(app)
 
+# Vigencia del modelo (R4): ventana de datos del artefacto servido. Refleja
+# main.py (TRAIN_END_YEAR=2025 → entrena 2020-2024; TEST_YEAR=2025). Servido por
+# /api/model para que el frontend no hardcodee la fecha de corte en el HTML.
+TRAINED_THROUGH = 2024   # último año incluido en el entrenamiento
+TESTED_ON = 2025         # año del test ciego principal
+
 modelo = None
 metrics = {}          # {accuracy, log_loss, brier, auc} del test ciego 2025
 coeficientes = {}     # {feature: {coef, odds_ratio}} — explicabilidad del modelo lineal
@@ -204,6 +210,8 @@ def model_info():
         'nombre': 'logreg',
         'metrics': metrics,
         'coeficientes': coeficientes,
+        'trained_through': TRAINED_THROUGH,
+        'tested_on': TESTED_ON,
     })
 
 

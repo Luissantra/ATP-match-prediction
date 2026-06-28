@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=9">
+    <link rel="stylesheet" href="/static/style.css?v=11">
 </head>
 <body class="surface-hard">
 
@@ -21,6 +21,9 @@
             <h1>Predicción de partido</h1>
             <p class="subtitle">Modelo de probabilidad (regresión logística calibrada) sobre ELO general y de superficie, ranking ATP y edad. Elige superficie y dos jugadores.</p>
         </header>
+
+        <!-- Vigencia del modelo (R4): fecha de corte servida por /api/model -->
+        <p class="model-disclaimer" id="model-disclaimer" hidden></p>
 
         <!-- ============================ CONTROLES ============================ -->
         <main class="control-card">
@@ -191,7 +194,7 @@
 
     </div>
 
-    <script src="/static/format.js?v=9"></script>
-    <script src="/static/script.js?v=9"></script>
+    <script src="/static/format.js?v=11"></script>
+    <script src="/static/script.js?v=11"></script>
 </body>
 </html>

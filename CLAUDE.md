@@ -51,7 +51,7 @@ Pipeline en dos etapas separadas. La **fuente única de verdad del vector de fea
 
 **Servidor web (`app.py`)**
 - Flask. Puerto configurable vía env `PORT` (default 8000 local; la imagen Docker fija 7860 para HF Spaces). Estado global de solo lectura cargado de los `.pkl` (apto para varios workers gunicorn).
-- Endpoints: `GET /api/players` (lista por ELO), `GET /api/predict?player_a=X&player_b=Y&surface=Z`, `GET /api/model` (métricas + coeficientes).
+- Endpoints: `GET /api/players` (lista por ELO), `GET /api/predict?player_a=X&player_b=Y&surface=Z`, `GET /api/model` (métricas + coeficientes + `trained_through`/`tested_on`).
 - `/api/predict` devuelve por jugador `elo_surfaces` (ELO en Hard/Clay/Grass) para la gráfica multi-superficie del frontend, además de `elo_general`/`elo_surface`/`elo_hybrid`/`rank`/`age`/`prob_victory`/`unknown`.
 - `construir_features()` reconstruye las 5 features con la misma semántica que el entrenamiento. La inferencia sirve numpy (evita warning de feature-names).
 - `verificar_version_sklearn()` avisa si el pkl se entrenó con otra versión.
@@ -64,7 +64,8 @@ Pipeline en dos etapas separadas. La **fuente única de verdad del vector de fea
 - Señales mostradas: barra de probabilidad como cancha vista desde arriba, gráfica ELO multi-superficie (`renderEloChart`, barras agrupadas Hard/Clay/Grass × 2 jugadores desde `elo_surfaces`), barras divergentes de `features_debug` (a quién favorece cada factor; son diferencias de feature, no peso del modelo), panel colapsable "Detalle del modelo" (métricas + coeficientes/odds-ratio; barras OR clamped a 50% del track), badge de jugador desconocido (`unknown`).
 - Fondo por superficie: `.court-bg` con textura distinta (`body.surface-hard/clay/grass`): rejilla ortogonal / trama diagonal / franjas de césped.
 - Selector: superficie (Hard/Clay/Grass).
-- Assets enlazados con `?v=N` (cache-busting; actual `v=8`); incrementa N **en los tres** (style.css, format.js, script.js) al cambiar CSS/JS.
+- Assets enlazados con `?v=N` (cache-busting; actual `v=11`); incrementa N **en los tres** (style.css, format.js, script.js) al cambiar CSS/JS.
+- Banner de vigencia (R4): `#model-disclaimer` tras el header; `loadDisclaimer()` lee `trained_through`/`tested_on` de `/api/model` (no hardcodea la fecha de corte en el HTML).
 
 ## Métricas (test ciego 2025, n=2861)
 

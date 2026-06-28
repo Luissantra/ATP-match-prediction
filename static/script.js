@@ -45,6 +45,24 @@ function init() {
     setupSearch(inputA, listA, 'A');
     setupSearch(inputB, listB, 'B');
     btn.addEventListener('click', runPrediction);
+    loadDisclaimer();
+}
+
+// Banner de vigencia (R4): fecha de corte servida por /api/model, no hardcodeada.
+async function loadDisclaimer() {
+    const el = document.getElementById('model-disclaimer');
+    if (!el) return;
+    try {
+        const info = await fetch('/api/model').then((r) => r.json());
+        if (info.trained_through == null || info.tested_on == null) return;
+        el.textContent =
+            `Modelo entrenado con datos hasta ${info.trained_through} ` +
+            `(test ${info.tested_on}). Las predicciones no reflejan lesiones, ` +
+            `retiradas ni forma reciente fuera del ELO.`;
+        el.hidden = false;
+    } catch (e) {
+        // Sin red: el banner queda oculto (no bloquea la app).
+    }
 }
 
 // El DOM ya puede estar listo cuando corre este script (al final del body):

@@ -29,9 +29,9 @@ App en producción. Pulir, ampliar funcionalidad y honestidad sobre los datos.
 - Decisiones de diseño: ¿árbol de eliminatorias manual o draws reales? ¿probabilidad de título por Montecarlo sobre el bracket? ¿endpoint nuevo `/api/tournament`?
 - Empezar simple: bracket de 8 con probabilidades por par y % de título vía simulación.
 
-### R4 — Disclaimer de vigencia del modelo
-- Banner/nota en el frontend: "Modelo entrenado con datos hasta 2024 (test 2025). Las predicciones no reflejan lesiones, retiradas ni forma reciente fuera del ELO."
-- Exponer la fecha de corte desde el backend (no hardcodear en el HTML): añadir `trained_through` a `/api/model`.
+### R4 — Disclaimer de vigencia del modelo ✅ (2026-06-28)
+- ✅ Banner `#model-disclaimer` en el frontend tras el header: "Modelo entrenado con datos hasta 2024 (test 2025). Las predicciones no reflejan lesiones, retiradas ni forma reciente fuera del ELO."
+- ✅ Fecha de corte servida por el backend (`trained_through`/`tested_on` en `/api/model`, constantes `TRAINED_THROUGH`/`TESTED_ON` en `app.py`); `loadDisclaimer()` la lee, no se hardcodea en el HTML.
 
 ### R6 — Visualizaciones de rendimiento del modelo en la UI
 

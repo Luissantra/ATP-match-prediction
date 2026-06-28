@@ -135,6 +135,16 @@ body.surface-grass .court-bg {
     max-width: 56ch;
 }
 
+/* Vigencia del modelo (R4): nota de honestidad sobre la fecha de corte. */
+.model-disclaimer {
+    margin-top: 18px;
+    color: var(--text-mut);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    max-width: 64ch;
+    opacity: 0.85;
+}
+
 /* ============================ TARJETAS BASE ============================ */
 .control-card, .results {
     background: var(--court-panel);
