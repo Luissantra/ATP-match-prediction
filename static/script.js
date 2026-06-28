@@ -237,6 +237,20 @@ async function runPrediction() {
     if (!selA || !selB) return;
     btn.classList.add('loading');
     btn.disabled = true;
+
+    const warnEl = document.getElementById('slow-load-warning');
+    if (warnEl) {
+        warnEl.hidden = true;
+        warnEl.textContent = '';
+    }
+
+    let slowTimer = setTimeout(() => {
+        if (warnEl) {
+            warnEl.textContent = 'El servidor de Hugging Face está despertando de su inactividad (esto puede tomar entre 15 y 20 segundos)...';
+            warnEl.hidden = false;
+        }
+    }, 1500);
+
     const params = `player_a=${encodeURIComponent(selA.name)}&player_b=${encodeURIComponent(selB.name)}&surface=${surface}`;
     try {
         const r = await fetch(`/api/predict?${params}`);
@@ -248,6 +262,8 @@ async function runPrediction() {
         formError.hidden = false;
         formError.textContent = e.message;
     } finally {
+        clearTimeout(slowTimer);
+        if (warnEl) warnEl.hidden = true;
         btn.classList.remove('loading');
         validate();
     }
@@ -527,7 +543,34 @@ function renderModelInfo(info) {
         <p class="models-note">Regresión logística calibrada · test ciego 2025 (n=2861). Menor log-loss = mejor.</p>
         <div class="coef-head"><strong>Coeficientes (odds-ratio por +1 desviación estándar)</strong></div>
         <div class="factor-bars">${coefRows}</div>
-        <p class="models-note">OR &gt; 1 (verde) inclina hacia el Jugador A; OR &lt; 1 (rojo) hacia el B. Es el peso real del modelo, no la diferencia del partido.</p>`;
+        <p class="models-note">OR &gt; 1 (verde) inclina hacia el Jugador A; OR &lt; 1 (rojo) hacia el B. Es el peso real del modelo, no la diferencia del partido.</p>
+        
+        <div class="ml-vs-elo-card">
+            <h4>
+                <span>ML vs. ELO Puro</span>
+                <span class="badge">¿Por qué importa un +0.015 de AUC?</span>
+            </h4>
+            <p>
+                El rating ELO es un estimador robusto del rendimiento histórico, pero adolece de inercia y es ciego a factores extra-deportivos. Nuestro modelo de Machine Learning (LogReg calibrado) actúa sobre el ELO corrigiendo sus limitaciones mediante características demográficas y contextuales clave:
+            </p>
+            <div class="ml-vs-elo-features">
+                <div class="ml-feature-item">
+                    <strong>Diferencia de Edad</strong>
+                    <span>Modula el desgaste y declive físico en veteranos, o el progreso acelerado en tenistas jóvenes, compensando la inercia del ELO.</span>
+                </div>
+                <div class="ml-feature-item">
+                    <strong>Ranking ATP</strong>
+                    <span>Incorpora la presión por defender puntos y la consistencia en el circuito profesional durante la temporada actual.</span>
+                </div>
+                <div class="ml-feature-item">
+                    <strong>Jugadores sin Ranking</strong>
+                    <span>Ajusta la alta incertidumbre de jugadores sin ranking formal (debido a lesiones largas o invitaciones de torneos).</span>
+                </div>
+            </div>
+            <div class="ml-vs-elo-footer">
+                En modelos probabilísticos deportivos, superar la barrera del ELO en <strong>+1.5% de AUC</strong> y reducir el LogLoss ($0.631 \to 0.622$) representa la diferencia matemática para obtener una ventaja predictiva consistente a largo plazo.
+            </div>
+        </div>`;
 }
 
 function renderEloChart(a, b) {

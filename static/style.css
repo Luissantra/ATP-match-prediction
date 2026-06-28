@@ -369,6 +369,18 @@ body.surface-grass .court-bg {
 .serve-btn.loading .spinner { display: block; }
 
 .form-error { color: var(--warn); font-size: 0.85rem; text-align: center; }
+.slow-load-warning {
+    color: var(--warn);
+    font-size: 0.82rem;
+    text-align: center;
+    background: color-mix(in srgb, var(--warn) 8%, transparent);
+    border: 1px dashed color-mix(in srgb, var(--warn) 40%, transparent);
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-top: 12px;
+    line-height: 1.4;
+    animation: pulse 2s infinite ease-in-out;
+}
 
 /* ============================ RESULTADOS ============================ */
 .results {
@@ -641,6 +653,75 @@ body.surface-grass .court-bg {
 .models-table .mname { text-transform: uppercase; }
 .models-note { font-size: 0.72rem; color: var(--text-faint); margin-top: 10px; }
 
+/* ---- Tarjeta explicativa ML vs ELO ---- */
+.ml-vs-elo-card {
+    background: var(--court-deep);
+    border: 1px solid var(--line-dim);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.ml-vs-elo-card h4 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.ml-vs-elo-card h4 .badge {
+    background: var(--accent);
+    color: var(--court-deep);
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    padding: 3px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+}
+.ml-vs-elo-card p {
+    font-size: 0.84rem;
+    line-height: 1.5;
+    color: var(--text-mut);
+    margin: 0;
+}
+.ml-vs-elo-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 8px;
+}
+.ml-feature-item {
+    background: var(--court-raise);
+    border: 1px solid var(--line-faint);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.ml-feature-item strong {
+    font-family: var(--display);
+    font-size: 0.88rem;
+    color: var(--text);
+}
+.ml-feature-item span {
+    font-size: 0.76rem;
+    color: var(--text-faint);
+    line-height: 1.4;
+}
+.ml-vs-elo-footer {
+    border-top: 1px solid var(--line-faint);
+    padding-top: 12px;
+    font-size: 0.78rem;
+    color: var(--text-faint);
+    line-height: 1.4;
+}
+
 /* ============================ FOOTER ============================ */
 .app-footer {
     text-align: center;
@@ -656,8 +737,19 @@ body.surface-grass .court-bg {
 /* ============================ ANIMACIONES ============================ */
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse { 0%, 100% { opacity: 0.9; } 50% { opacity: 0.45; } }
 
 /* ============================ RESPONSIVE ============================ */
+@media (min-width: 761px) and (max-width: 1024px) {
+    body { padding: 40px 24px; }
+    .container { gap: 24px; }
+    .matchup { gap: 12px; grid-template-columns: 1fr 48px 1fr; }
+    .net-divider { margin-top: 16px; }
+    .fbar { grid-template-columns: 100px 1fr; }
+    .compare-grid { gap: 12px; }
+    .cmp-card { padding: 14px; }
+}
+
 @media (max-width: 760px) {
     body { padding: 32px 14px; }
     .selector-row { grid-template-columns: 1fr; }
