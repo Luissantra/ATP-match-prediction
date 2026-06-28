@@ -3,6 +3,40 @@
 > Backlog derivado de la revisión técnica 2026-06-24. **Backlog cerrado** (2026-06-26).
 > **Poda de minimalismo** (2026-06-26): ver sección abajo. 124 tests (pytest) + 4 (node).
 > **Épica deploy + visual (2026-06-27): RESUELTA.** Plan en `docs/superpowers/plans/2026-06-27-visual-polish-then-hf-deploy.md`.
+> **Desplegado en HuggingFace Spaces (2026-06-28):** https://luissantra-atp-prediction.hf.space — deploy vía `scripts/deploy-hf.sh` (migración LFS efímera de `.pkl`) + auto-sync GitHub→HF (`.github/workflows/sync-to-hf.yml`).
+> **Nueva épica abierta (2026-06-28): refinamiento post-deploy.** Ver abajo.
+
+## Próximo — Épica refinamiento post-deploy (2026-06-28)
+
+App en producción. Pulir, ampliar funcionalidad y honestidad sobre los datos.
+
+### R1 — Detalles técnicos
+- Quitar el warning `JSONArgsRecommended` del Dockerfile (CMD en shell-form por `$PORT`): evaluar `ENTRYPOINT`/exec-form con `sh -c` o script de arranque.
+- `notebooks/atp_resumen.ipynb` sigue en el modelo viejo (8 features): actualizar al de 5 o archivar.
+- Mantener `requirements-serve.txt` en sync con `requirements.txt` (hoy manual; ¿test que lo verifique?).
+- Revisar `metrics_atp.pkl` (4 KB) y demás artefactos: confirmar que todo lo servido es mínimo.
+
+### R2 — Detalles visuales
+- Estado de carga / errores del Space en frío (HF duerme el Space inactivo: primer request lento). Mensaje de "despertando modelo".
+- Afinar intensidad de texturas si en producción se ven flojas (clay/grass sutiles).
+- Pulir responsive en tablets (760–1024px), no solo móvil.
+- Posible: enlace/footer a HF + GitHub, favicon, og:image para compartir.
+
+### R3 — Funcionalidad: simular torneo
+- Simular un cuadro completo de un torneo actual (ATP 250/500/Masters/Grand Slam): el usuario elige torneo + superficie + lista de participantes (o seed real), y el sistema propaga probabilidades ronda a ronda hasta el campeón.
+- Decisiones de diseño: ¿árbol de eliminatorias manual o draws reales? ¿probabilidad de título por Montecarlo sobre el bracket? ¿endpoint nuevo `/api/tournament`?
+- Empezar simple: bracket de 8 con probabilidades por par y % de título vía simulación.
+
+### R4 — Disclaimer de vigencia del modelo
+- Banner/nota en el frontend: "Modelo entrenado con datos hasta 2024 (test 2025). Las predicciones no reflejan lesiones, retiradas ni forma reciente fuera del ELO."
+- Exponer la fecha de corte desde el backend (no hardcodear en el HTML): añadir `trained_through` a `/api/model`.
+
+### R5 — Actualización de datos de entrenamiento (DECISIÓN ABIERTA)
+Tensión real: añadir 2025 al train mejora la vigencia pero **sacrifica el test ciego honesto** (hoy 2025, n=2861). Opciones a evaluar:
+- **Rolling window**: train hasta año N−1, test año N; reentrenar cada temporada. Mantiene evaluación honesta; el n del test varía año a año.
+- **Walk-forward / backtesting**: evaluar sobre varios años out-of-sample encadenados. Más robusto, más trabajo.
+- El test 2026 (n≈137) es hoy solo referencial por tamaño; a fin de temporada 2026 será un test válido sin tocar el split actual.
+- **No** mover 2025 al train sin sustituir el test por uno igual de honesto. Decidir antes de tocar `main.py`.
 
 ## Resuelto — Épica deploy + visual (2026-06-27)
 
