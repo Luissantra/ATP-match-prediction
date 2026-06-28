@@ -122,7 +122,7 @@ def evaluar_y_graficar(modelo, X_test, y_test, df_test, features,
     print(classification_report(y_test, preds, target_names=['Derrota A', 'Victoria A']))
 
     os.makedirs("plots", exist_ok=True)
-    _plot_confusion_matrix(y_test, preds, accuracy)
+    cm_data = _plot_confusion_matrix(y_test, preds, accuracy)
     # El Gini sólo aplica a modelos de árboles. Para el modelo lineal la explicabilidad
     # se cubre con coeficientes (graficar_coeficientes) y permutation importance.
     modelo_imp = modelo_para_importancia if modelo_para_importancia is not None else modelo
@@ -130,7 +130,7 @@ def evaluar_y_graficar(modelo, X_test, y_test, df_test, features,
         _plot_feature_importance(modelo_imp, features)
     _plot_accuracy_by_surface(df_test, preds, accuracy)
 
-    return accuracy
+    return cm_data
 
 
 def graficar_learning_curve(modelo, X_train, y_train, cv):
@@ -183,6 +183,7 @@ def graficar_reliability_diagram(modelo, X, y, n_bins=10):
     plt.tight_layout()
     plt.savefig("plots/reliability_diagram.png", dpi=300)
     plt.close()
+    return {"prob_pred": prob_pred.tolist(), "prob_true": prob_true.tolist()}
 
 
 def graficar_histograma_probas(modelo, X, y, bins=20):
@@ -209,6 +210,7 @@ def graficar_histograma_probas(modelo, X, y, bins=20):
     plt.tight_layout()
     plt.savefig("plots/histograma_probas.png", dpi=300)
     plt.close()
+    return {"class_0": proba[y_arr == 0].tolist(), "class_1": proba[y_arr == 1].tolist()}
 
 
 def _plot_confusion_matrix(y_test, preds, accuracy):
@@ -230,6 +232,7 @@ def _plot_confusion_matrix(y_test, preds, accuracy):
     plt.tight_layout()
     plt.savefig("plots/matriz_confusion.png", dpi=300)
     plt.close()
+    return cm.tolist()
 
 
 def _plot_feature_importance(modelo, features):

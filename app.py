@@ -206,10 +206,15 @@ def players():
 @app.route('/api/model')
 def model_info():
     """Métricas del modelo (test ciego 2025) y coeficientes para explicabilidad."""
+    # Extraer plots_data si existe para no mezclarlo con las métricas puras
+    metrics_only = {k: v for k, v in metrics.items() if k != 'plots_data'}
+    plots_data = metrics.get('plots_data', {})
+    
     return jsonify({
         'nombre': 'logreg',
-        'metrics': metrics,
+        'metrics': metrics_only,
         'coeficientes': coeficientes,
+        'plots_data': plots_data,
         'trained_through': TRAINED_THROUGH,
         'tested_on': TESTED_ON,
     })

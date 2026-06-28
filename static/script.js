@@ -97,37 +97,99 @@ function setupPills(groupId, onChange) {
 
 // ----- Buscador con autocompletado -----
 function setupSearch(input, list, side) {
+    let activeIndex = -1;
+
+    function closeList() {
+        list.style.display = 'none';
+        input.setAttribute('aria-expanded', 'false');
+        input.removeAttribute('aria-activedescendant');
+        activeIndex = -1;
+    }
+
     input.addEventListener('input', () => {
         const q = input.value.trim().toLowerCase();
         list.innerHTML = '';
-        if (q.length < 2) { list.style.display = 'none'; clearSelection(side); return; }
+        activeIndex = -1;
+        input.removeAttribute('aria-activedescendant');
+
+        if (q.length < 2) { closeList(); clearSelection(side); return; }
 
         const matches = players.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 8);
         if (matches.length === 0) {
-            list.innerHTML = '<div class="ac-item"><span class="ac-name" style="color:var(--text-faint)">Sin resultados</span></div>';
+            list.innerHTML = '<div class="ac-item no-hover" style="cursor:default"><span class="ac-name" style="color:var(--text-faint)">Sin resultados</span></div>';
             list.style.display = 'block';
+            input.setAttribute('aria-expanded', 'true');
             return;
         }
-        matches.forEach((p) => {
+        matches.forEach((p, idx) => {
             const item = document.createElement('div');
             item.className = 'ac-item';
+            item.id = `ac-item-${side}-${idx}`;
+            item.setAttribute('role', 'option');
             item.innerHTML = `<span class="ac-name">${p.name}</span>
                 <span class="ac-meta">${formatRank(p.rank)} · ELO ${Math.round(p.elo)}</span>`;
             item.addEventListener('click', () => {
                 input.value = p.name;
-                list.style.display = 'none';
+                closeList();
                 selectPlayer(p, side);
             });
             list.appendChild(item);
         });
         list.style.display = 'block';
+        input.setAttribute('aria-expanded', 'true');
     });
 
     input.addEventListener('focus', () => {
-        if (input.value.trim().length >= 2 && list.children.length) list.style.display = 'block';
+        if (input.value.trim().length >= 2 && list.children.length) {
+            list.style.display = 'block';
+            input.setAttribute('aria-expanded', 'true');
+        }
     });
+
+    input.addEventListener('keydown', (e) => {
+        const items = list.querySelectorAll('.ac-item:not(.no-hover)');
+        if (list.style.display !== 'block' || items.length === 0) {
+            if (e.key === 'ArrowDown' && input.value.trim().length >= 2 && list.children.length) {
+                list.style.display = 'block';
+                input.setAttribute('aria-expanded', 'true');
+            }
+            return;
+        }
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeIndex = (activeIndex + 1) % items.length;
+            updateActiveItem(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeIndex = (activeIndex - 1 + items.length) % items.length;
+            updateActiveItem(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (activeIndex > -1 && items[activeIndex]) {
+                items[activeIndex].click();
+            }
+        } else if (e.key === 'Escape') {
+            closeList();
+        }
+    });
+
+    function updateActiveItem(items) {
+        items.forEach((item, idx) => {
+            if (idx === activeIndex) {
+                item.classList.add('ac-active');
+                item.setAttribute('aria-selected', 'true');
+                input.setAttribute('aria-activedescendant', item.id);
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('ac-active');
+                item.removeAttribute('aria-selected');
+            }
+        });
+    }
+
     document.addEventListener('click', (e) => {
-        if (e.target !== input) list.style.display = 'none';
+        if (e.target !== input) closeList();
     });
 }
 
@@ -297,11 +359,137 @@ const COEF_LABELS = {
 async function loadModelInfo() {
     const bodyEl = document.getElementById('models-body');
     bodyEl.innerHTML = '<p class="models-loading">Cargando…</p>';
+    const plotsLoading = document.getElementById('plots-loading');
+    if (plotsLoading) plotsLoading.style.display = 'block';
+    
     try {
         const info = await fetch('/api/model').then((r) => r.json());
         renderModelInfo(info);
+        if (info.plots_data) {
+            if (plotsLoading) plotsLoading.style.display = 'none';
+            renderPlots(info.plots_data);
+        }
     } catch (e) {
         bodyEl.innerHTML = '<p class="models-loading">No disponible.</p>';
+        if (plotsLoading) plotsLoading.textContent = 'Gráficos no disponibles.';
+    }
+}
+
+function renderPlots(data) {
+    if (!window.Plotly) return;
+    const fontColor = '#C0C0C0';
+    const gridColor = 'rgba(255,255,255,0.1)';
+    const bgColor = 'rgba(0,0,0,0)';
+
+    const layoutBase = {
+        paper_bgcolor: bgColor,
+        plot_bgcolor: bgColor,
+        font: { color: fontColor, family: 'Inter, system-ui, sans-serif', size: 12 },
+        margin: { l: 50, r: 20, t: 50, b: 50 }
+    };
+
+    // 1. Matriz de confusión (Heatmap)
+    if (data.confusion_matrix) {
+        const cm = data.confusion_matrix;
+        const z = [[cm[1][0], cm[1][1]], [cm[0][0], cm[0][1]]]; // Invertir Y para visualización correcta
+        const traceCM = {
+            z: z,
+            x: ['Pred. Derrota A', 'Pred. Victoria A'],
+            y: ['Real Victoria A', 'Real Derrota A'],
+            type: 'heatmap',
+            colorscale: [[0, 'rgba(46, 155, 230, 0.05)'], [1, 'rgba(46, 155, 230, 0.85)']],
+            showscale: false,
+            hoverinfo: 'z',
+            hoverlabel: { bgcolor: '#2c3e50', font: { color: 'white' } }
+        };
+        const layoutCM = {
+            ...layoutBase,
+            title: { text: 'Matriz de Confusión', font: { color: '#FFFFFF', size: 16 } },
+            xaxis: { title: 'Predicción del Modelo', showgrid: false },
+            yaxis: { title: 'Estado Real', showgrid: false },
+            annotations: []
+        };
+        for(let i=0; i<2; i++) {
+            for(let j=0; j<2; j++) {
+                const val = z[i][j];
+                const total = z[i][0] + z[i][1];
+                const pct = (val / total * 100).toFixed(1);
+                layoutCM.annotations.push({
+                    x: traceCM.x[j],
+                    y: traceCM.y[i],
+                    text: `<b>${val}</b><br>(${pct}%)`,
+                    font: { color: val > 800 ? '#FFFFFF' : '#E0E0E0', size: 14 },
+                    showarrow: false
+                });
+            }
+        }
+        Plotly.newPlot('plot-confusion', [traceCM], layoutCM, {displayModeBar: false, responsive: true});
+    }
+
+    // 2. Reliability Diagram (Scatter/Line)
+    if (data.reliability) {
+        const traceRel = {
+            x: data.reliability.prob_pred,
+            y: data.reliability.prob_true,
+            mode: 'lines+markers',
+            name: 'Modelo',
+            line: { color: '#2E9BE6', width: 2 },
+            marker: { size: 8, line: { color: '#FFFFFF', width: 1 } },
+            hoverlabel: { bgcolor: '#2E9BE6', font: { color: 'white' } }
+        };
+        const tracePerf = {
+            x: [0, 1],
+            y: [0, 1],
+            mode: 'lines',
+            name: 'Perfecta',
+            line: { color: 'rgba(255,255,255,0.3)', dash: 'dash', width: 2 },
+            hoverinfo: 'skip'
+        };
+        const layoutRel = {
+            ...layoutBase,
+            title: { text: 'Calibración (Reliability Diagram)', font: { color: '#FFFFFF', size: 16 } },
+            xaxis: { title: 'Probabilidad Predicha', range: [0, 1], gridcolor: gridColor, zerolinecolor: gridColor },
+            yaxis: { title: 'Tasa Real Positivos', range: [0, 1], gridcolor: gridColor, zerolinecolor: gridColor },
+            showlegend: true,
+            legend: { orientation: 'h', x: 0.5, y: -0.25, xanchor: 'center' }
+        };
+        Plotly.newPlot('plot-reliability', [traceRel, tracePerf], layoutRel, {displayModeBar: false, responsive: true});
+    }
+
+    // 3. Histograma de Probabilidades
+    if (data.histogram) {
+        const trace0 = {
+            x: data.histogram.class_0,
+            type: 'histogram',
+            name: 'Derrota A',
+            marker: { color: '#E0703A' },
+            opacity: 0.75,
+            xbins: { start: 0, end: 1, size: 0.05 },
+            hoverlabel: { bgcolor: '#E0703A', font: { color: 'white' } }
+        };
+        const trace1 = {
+            x: data.histogram.class_1,
+            type: 'histogram',
+            name: 'Victoria A',
+            marker: { color: '#5BB85B' },
+            opacity: 0.75,
+            xbins: { start: 0, end: 1, size: 0.05 },
+            hoverlabel: { bgcolor: '#5BB85B', font: { color: 'white' } }
+        };
+        const layoutHist = {
+            ...layoutBase,
+            title: { text: 'Distribución de Probabilidades', font: { color: '#FFFFFF', size: 16 } },
+            barmode: 'overlay',
+            xaxis: { title: 'P(victoria A)', range: [0, 1], gridcolor: gridColor, zerolinecolor: gridColor },
+            yaxis: { title: 'Frecuencia', gridcolor: gridColor, zerolinecolor: gridColor },
+            showlegend: true,
+            legend: { orientation: 'h', x: 0.5, y: -0.25, xanchor: 'center' },
+            shapes: [{
+                type: 'line', x0: 0.5, x1: 0.5, y0: 0, y1: 1, yref: 'paper',
+                line: { color: 'rgba(255,255,255,0.5)', dash: 'dash', width: 2 }
+            }]
+        };
+        Plotly.newPlot('plot-histogram', [trace0, trace1], layoutHist, {displayModeBar: false, responsive: true});
     }
 }
 

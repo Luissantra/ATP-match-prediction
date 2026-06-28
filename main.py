@@ -63,11 +63,11 @@ if __name__ == "__main__":
 
     # 4. Evaluar y graficar (modelo calibrado sobre test principal 2025)
     print(f"\n[4/5] Evaluando test principal ({TEST_YEAR}) y generando gráficos...")
-    evaluar_y_graficar(modelo, X_test, y_test, df_test, FEATURES)
+    cm_data = evaluar_y_graficar(modelo, X_test, y_test, df_test, FEATURES)
     cv_splits = list(purged_time_series_splits(dates_train, n_splits=5))
     graficar_learning_curve(modelo_base, X_train, y_train, cv_splits)
-    graficar_reliability_diagram(modelo, X_test, y_test)
-    graficar_histograma_probas(modelo, X_test, y_test)
+    rel_data = graficar_reliability_diagram(modelo, X_test, y_test)
+    hist_data = graficar_histograma_probas(modelo, X_test, y_test)
     graficar_permutation_importance(modelo, X_test.values, y_test.values, FEATURES)
     graficar_coeficientes(coefs)
 
@@ -82,6 +82,11 @@ if __name__ == "__main__":
     print(f"\n  MODELO LogReg — test principal {TEST_YEAR} (n={n_test}, IC95% AUC ≈ ±{ic_aprox:.3f}):")
     met_ic = evaluar_con_ic(modelo, X_test, y_test)
     metrics = {k: v for k, v in met_ic.items() if k in ('accuracy', 'log_loss', 'brier', 'auc')}
+    metrics['plots_data'] = {
+        'confusion_matrix': cm_data,
+        'reliability': rel_data,
+        'histogram': hist_data
+    }
     print(f"    log-loss={met_ic['log_loss']:.4f} [{met_ic['log_loss_ic']['lower']:.4f}–{met_ic['log_loss_ic']['upper']:.4f}]  "
           f"AUC={met_ic['auc']:.4f} [{met_ic['auc_ic']['lower']:.4f}–{met_ic['auc_ic']['upper']:.4f}]")
 

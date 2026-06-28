@@ -53,8 +53,8 @@
                 <div class="player-col" id="col-a">
                     <span class="side-tag side-a">LADO A</span>
                     <div class="search">
-                        <input type="text" id="player-a-input" autocomplete="off" placeholder="Buscar jugador…">
-                        <div class="autocomplete" id="player-a-list"></div>
+                        <input type="text" id="player-a-input" autocomplete="off" placeholder="Buscar jugador…" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="player-a-list">
+                        <div class="autocomplete" id="player-a-list" role="listbox"></div>
                     </div>
                     <div class="mini-card" id="card-a">
                         <div class="mini-name">—</div>
@@ -73,8 +73,8 @@
                 <div class="player-col" id="col-b">
                     <span class="side-tag side-b">LADO B</span>
                     <div class="search">
-                        <input type="text" id="player-b-input" autocomplete="off" placeholder="Buscar jugador…">
-                        <div class="autocomplete" id="player-b-list"></div>
+                        <input type="text" id="player-b-input" autocomplete="off" placeholder="Buscar jugador…" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="player-b-list">
+                        <div class="autocomplete" id="player-b-list" role="listbox"></div>
                     </div>
                     <div class="mini-card" id="card-b">
                         <div class="mini-name">—</div>
@@ -183,6 +183,17 @@
                 <div class="models-body" id="models-body">
                     <p class="models-loading">Cargando…</p>
                 </div>
+            <details class="models">
+                <summary>
+                    <span>Rendimiento del modelo</span>
+                    <span class="chevron">▾</span>
+                </summary>
+                <div class="models-body" id="plots-body" style="display: flex; flex-direction: column; gap: 24px;">
+                    <p class="models-loading" id="plots-loading">Cargando visualizaciones…</p>
+                    <div id="plot-confusion" class="plot-container"></div>
+                    <div id="plot-reliability" class="plot-container"></div>
+                    <div id="plot-histogram" class="plot-container"></div>
+                </div>
             </details>
 
         </section>
@@ -194,6 +205,7 @@
 
     </div>
 
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
     <script src="/static/format.js?v=11"></script>
     <script src="/static/script.js?v=11"></script>
 </body>

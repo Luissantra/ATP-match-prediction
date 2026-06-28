@@ -280,7 +280,7 @@ body.surface-grass .court-bg {
     border-bottom: 1px solid var(--line-faint);
 }
 .ac-item:last-child { border-bottom: none; }
-.ac-item:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.ac-item:hover, .ac-item.ac-active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .ac-item .ac-name { font-weight: 500; font-size: 0.9rem; }
 .ac-item .ac-meta { font-family: var(--mono); font-size: 0.72rem; color: var(--text-mut); }
 
