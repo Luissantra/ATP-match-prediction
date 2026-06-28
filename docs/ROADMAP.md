@@ -31,6 +31,36 @@ App en producción. Pulir, ampliar funcionalidad y honestidad sobre los datos.
 - Banner/nota en el frontend: "Modelo entrenado con datos hasta 2024 (test 2025). Las predicciones no reflejan lesiones, retiradas ni forma reciente fuera del ELO."
 - Exponer la fecha de corte desde el backend (no hardcodear en el HTML): añadir `trained_through` a `/api/model`.
 
+### R6 — Visualizaciones de rendimiento del modelo en la UI
+
+`src/evaluate.py` ya genera estos plots en tiempo de entrenamiento (y `main.py` los guarda), pero no se exponen en el frontend:
+
+- **Matriz de confusión** — muestra falsos positivos/negativos reales sobre test 2025 (n=2861). Insight directo: ¿en qué dirección falla el modelo?
+- **Reliability diagram / calibration curve** — ya generado por `graficar_reliability_diagram`. Muestra si el 70% predicho ocurre ~70% de las veces. Clave para honestidad ante el usuario.
+- **Histograma de probabilidades** — distribución de confianza del modelo (¿predice muchos 50-55% o llega a extremos?). Complementa el reliability diagram.
+- **Scatter plot predicción vs resultado** — útil para ver si errores se concentran en partidos cercanos (prob ~50%) o si falla sistemáticamente en algún rango.
+
+Plan de implementación sugerido:
+1. `main.py` ya exporta plots a `static/plots/` (o nuevo directorio). Si no, añadir guardado PNG.
+2. Flask: endpoint `GET /api/plots` devuelve lista, o servir directamente desde `static/`.
+3. Frontend: subpanel "Rendimiento del modelo" (colapsable, igual que "Detalle del modelo") con las imágenes.
+
+No requiere reentrenar — los plots se regeneran con `python main.py`. El scatter predicción-vs-resultado sí requiere guardar `y_prob` del test en `metrics_atp.pkl` si no está ya.
+
+### R7 — UX: navegación por teclado en selector de jugador
+
+Problema actual: el usuario escribe en el input de búsqueda pero debe hacer clic con el ratón para seleccionar de la lista desplegable. No hay navegación ↑↓ + Enter.
+
+Cambios en `templates/index.html` / `static/script.js`:
+- Tecla ↓ en input abre dropdown y mueve foco al primer ítem.
+- ↑↓ navegan entre ítems de la lista (con `aria-activedescendant` actualizado).
+- Enter sobre ítem seleccionado lo confirma (igual que clic).
+- Escape cierra dropdown y devuelve foco al input.
+- Tab fuera del combo cierra dropdown.
+- `role="combobox"` + `aria-expanded` + `aria-autocomplete="list"` para accesibilidad.
+
+Bajo coste, alto impacto en usabilidad (especialmente en desktop sin trackpad).
+
 ### R5 — Actualización de datos de entrenamiento (DECISIÓN ABIERTA)
 Tensión real: añadir 2025 al train mejora la vigencia pero **sacrifica el test ciego honesto** (hoy 2025, n=2861). Opciones a evaluar:
 - **Rolling window**: train hasta año N−1, test año N; reentrenar cada temporada. Mantiene evaluación honesta; el n del test varía año a año.
