@@ -32,7 +32,7 @@ def crear_pipeline():
     desviación estándar → comparables entre features de escalas distintas (ELO vs rank)."""
     return make_pipeline(
         StandardScaler(),
-        LogisticRegression(max_iter=1000, random_state=42),
+        LogisticRegression(solver='liblinear', max_iter=1000, random_state=42),
     )
 
 
@@ -45,7 +45,10 @@ def entrenar_modelo(X, y, dates=None, embargo_days=7, param_grid=None):
     (best_pipeline, cv_log_loss, best_params)
     """
     if param_grid is None:
-        param_grid = {'logisticregression__C': [0.01, 0.1, 1.0, 10.0]}
+        param_grid = {
+            'logisticregression__penalty': ['l1', 'l2'],
+            'logisticregression__C': [0.005, 0.01, 0.05, 0.1, 1.0, 10.0]
+        }
     cv = _build_cv(dates, embargo_days, TimeSeriesSplit(n_splits=5))
 
     # El producto es la probabilidad de victoria → optimizamos log-loss, no accuracy.
