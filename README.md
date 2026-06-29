@@ -77,7 +77,7 @@ static/
 ├── format.js           # Funciones puras de presentación (testeadas con node --test)
 └── script.js           # Estado, fetch y render; llama /api/predict, /api/model
 
-tests/                  # 124 tests (pytest) + 4 (node)
+tests/                  # 136 tests (pytest) + 4 (node)
 notebooks/
 └── atp_resumen.ipynb   # Didáctico (legacy — pendiente de actualizar al modelo de 5 features)
 docs/

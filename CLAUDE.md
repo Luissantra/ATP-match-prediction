@@ -64,8 +64,12 @@ Pipeline en dos etapas separadas. La **fuente única de verdad del vector de fea
 - Señales mostradas: barra de probabilidad como cancha vista desde arriba, gráfica ELO multi-superficie (`renderEloChart`, barras agrupadas Hard/Clay/Grass × 2 jugadores desde `elo_surfaces`), barras divergentes de `features_debug` (a quién favorece cada factor; son diferencias de feature, no peso del modelo), panel colapsable "Detalle del modelo" (métricas + coeficientes/odds-ratio; barras OR clamped a 50% del track), badge de jugador desconocido (`unknown`).
 - Fondo por superficie: `.court-bg` con textura distinta (`body.surface-hard/clay/grass`): rejilla ortogonal / trama diagonal / franjas de césped.
 - Selector: superficie (Hard/Clay/Grass).
-- Assets enlazados con `?v=N` (cache-busting; actual `v=11`); incrementa N **en los tres** (style.css, format.js, script.js) al cambiar CSS/JS.
+- Assets enlazados con `?v=N` (cache-busting; actual `v=15`); incrementa N **en los tres** (style.css, format.js, script.js) al cambiar CSS/JS.
 - Banner de vigencia (R4): `#model-disclaimer` tras el header; `loadDisclaimer()` lee `trained_through`/`tested_on` de `/api/model` (no hardcodea la fecha de corte en el HTML).
+- Trophy SVG en nav y modal: icono filled (copa sólida + orejas stroke + base escalonada); dos ubicaciones (`#open-tournament-btn` y `.modal-header`).
+- Winner section como marcador de probabilidad: línea accent arriba, nombre en display grande (3.2rem), probabilidad en mono 2.4rem + label "PROBABILIDAD ESTIMADA" en caps pequeño (via `winner-conf` innerHTML desde JS).
+- Block-head h3: `padding-left: 11px; border-left: 2px solid var(--accent)` para secciones de resultados.
+- `.cmp-card.cmp-winner`: border accent + glow sutil al ganador en la comparativa numérica.
 
 ## Métricas (test ciego 2025, n=2861)
 
