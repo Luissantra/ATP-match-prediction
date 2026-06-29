@@ -1,11 +1,13 @@
 import os
 import pickle
+import time
 import sklearn
 import numpy as np
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 
 from src.features import RANK_CAP, elo_hibrido, vector_from_features
+from src import draw
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 CORS(app)
@@ -21,6 +23,9 @@ coeficientes = {}     # {feature: {coef, odds_ratio}} — explicabilidad del mod
 elo_general = {}
 elo_superficie = {}
 stats_jugadores = {}
+
+_ongoing_cache = {'df': None, 'fetched_at': None}
+ONGOING_CACHE_TTL = 3600
 
 
 def verificar_version_sklearn(saved_version):
@@ -177,6 +182,18 @@ def _predecir_con(modelo_usado, player_a, player_b, surface):
     }
 
 
+def _get_ongoing_df():
+    now = time.time()
+    if (_ongoing_cache['df'] is not None
+            and _ongoing_cache['fetched_at'] is not None
+            and now - _ongoing_cache['fetched_at'] < ONGOING_CACHE_TTL):
+        return _ongoing_cache['df']
+    df = draw.descargar_ongoing()
+    _ongoing_cache['df'] = df
+    _ongoing_cache['fetched_at'] = now
+    return df
+
+
 with app.app_context():
     cargar_modelo()
 
@@ -248,6 +265,16 @@ def predict():
         return jsonify(resultado)
     except Exception as e:
         return jsonify({"detail": f"Error al predecir: {e}"}), 500
+
+
+@app.route('/api/tournaments')
+def list_tournaments():
+    try:
+        df = _get_ongoing_df()
+        torneos = draw.listar_torneos(df)
+        return jsonify({'tournaments': torneos})
+    except RuntimeError as e:
+        return jsonify({'detail': str(e)}), 503
 
 
 @app.route('/api/tournament/info')

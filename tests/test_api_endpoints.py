@@ -165,3 +165,44 @@ def test_tournament_info_invalido_devuelve_404(client):
     r = client.get('/api/tournament/info?tournament=TorneoInexistente')
     assert r.status_code == 404
 
+
+# ── GET /api/tournaments ─────────────────────────────────────────────────────
+
+import pandas as pd
+from unittest.mock import patch
+
+
+def _df_ongoing_mock():
+    return pd.DataFrame([
+        {'tourney_id': '2026-580', 'tourney_name': 'Wimbledon',
+         'surface': 'Grass', 'tourney_level': 'G',
+         'winner_name': 'Sinner', 'loser_name': 'Alcaraz',
+         'match_num': 1, 'round': 'R64'},
+        {'tourney_id': '2026-422', 'tourney_name': 'Halle',
+         'surface': 'Grass', 'tourney_level': '250',
+         'winner_name': 'Zverev', 'loser_name': 'Ruud',
+         'match_num': 1, 'round': 'R32'},
+    ])
+
+
+def test_api_tournaments_devuelve_200(client):
+    with patch('app._get_ongoing_df', return_value=_df_ongoing_mock()):
+        r = client.get('/api/tournaments')
+    assert r.status_code == 200
+    data = r.get_json()
+    assert 'tournaments' in data
+    assert len(data['tournaments']) == 2
+
+
+def test_api_tournaments_prioridad(client):
+    """Wimbledon (G) debe aparecer primero."""
+    with patch('app._get_ongoing_df', return_value=_df_ongoing_mock()):
+        data = client.get('/api/tournaments').get_json()
+    assert data['tournaments'][0]['name'] == 'Wimbledon'
+
+
+def test_api_tournaments_503_si_tml_falla(client):
+    with patch('app._get_ongoing_df', side_effect=RuntimeError("timeout")):
+        r = client.get('/api/tournaments')
+    assert r.status_code == 503
+
