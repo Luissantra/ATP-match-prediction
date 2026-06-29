@@ -152,11 +152,13 @@ Entre la poda de junio y esta fecha se habían añadido `diff_matches_played` y 
 - **N1** — `notebooks/atp_resumen.ipynb` didáctico.
 - **N2** — Rediseño UI "court-side telemetry" (identidad por superficie, barras divergentes).
 
-## Residuos pendientes (2026-06-29)
+## Residuos resueltos (2026-06-29, limpieza)
 
-Deuda menor, no bloquea la calidad actual del proyecto. Por orden de prioridad:
+- ✅ **D-RES1** — `penalty=['l1','l2']` → `l1_ratio=[0.0, 1.0]` en `src/train.py`. Reentrenado. Warnings de sklearn eliminados (13 → 7). Métricas idénticas.
+- ✅ **D-RES2** — 136/136 tests verdes (los tests de torneo se arreglaron solos en refactor previo).
+- ✅ **D-RES4** — Dockerfile CMD con `exec gunicorn` (gunicorn recibe SIGTERM directamente como PID 1).
+- ✅ **Organización git** — Plan stale `docs/superpowers/plans/2026-06-27-*.md` movido a `archive/`. `docs/superpowers/` añadido a `.gitignore`. `docs/REVISION-CALIDAD-2026-06-26.md` archivado.
 
-- **D-RES1 · Deuda sklearn 1.10.** `src/train.py` (`param_grid`) usa `penalty=['l1','l2']`, deprecado en sklearn 1.9 → **romperá el entrenamiento en sklearn 1.10**. Migrar a `l1_ratio` (`l1_ratio=0`≡L2, `=1`≡L1) + `C`. Genera los `FutureWarning`/`UserWarning` actuales. Requiere reentrenar el pkl tras el cambio.
-- **D-RES2 · Tests de torneo rotos (pre-existentes).** `test_simulate_tournament_devuelve_200` y `test_tournament_info_devuelve_200` fallan con 404 (necesitan datos reales que el mock no provee; no relacionados con features). Arreglar el fixture o marcar `xfail` para no pudrir la suite. 134/136 verdes hoy.
+## Residuos pendientes
+
 - **D-RES3 · Notebook `atp_resumen.ipynb`.** Sigue en el modelo viejo (8 features) y métricas que no coinciden con producción. Actualizar al modelo de 5 (con celda de IC/baseline/reliability como pedía Q5) **o** archivar para no mantenerlo.
-- **D-RES4 · Dockerfile `JSONArgsRecommended`.** (Heredado de R1.) CMD en shell-form por `$PORT`; evaluar exec-form con script de arranque.

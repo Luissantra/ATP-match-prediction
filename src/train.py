@@ -46,7 +46,7 @@ def entrenar_modelo(X, y, dates=None, embargo_days=7, param_grid=None):
     """
     if param_grid is None:
         param_grid = {
-            'logisticregression__penalty': ['l1', 'l2'],
+            'logisticregression__l1_ratio': [0.0, 1.0],  # 0.0=L2, 1.0=L1
             'logisticregression__C': [0.005, 0.01, 0.05, 0.1, 1.0, 10.0]
         }
     cv = _build_cv(dates, embargo_days, TimeSeriesSplit(n_splits=5))
