@@ -40,7 +40,7 @@ def test_calcular_elos_hasta_fecha(tmp_path):
     df.to_csv(tmp_path / "2024.csv", index=False)
 
     # Si cortamos en 20240115, debe incluir solo los dos primeros partidos
-    df_res, elo_gen, _ = calcular_elos_historicos(str(tmp_path), [2024], hasta_fecha=20240115)
+    df_res, elo_gen, _, *_ = calcular_elos_historicos(str(tmp_path), [2024], hasta_fecha=20240115)
     assert len(df_res) == 2
     # El partido de Djokovic vs Sinner en fecha 15 y Alcaraz vs Ruud en fecha 20 no deben procesarse
     assert 'Djokovic' in elo_gen
@@ -60,8 +60,8 @@ def test_preparar_features_test_estatico():
     elo_gen = {'Djokovic': 1700.0, 'Sinner': 1600.0}
     elo_sup = {'Hard': {'Djokovic': 1750.0, 'Sinner': 1620.0}}
     stats_jugadores = {
-        'Djokovic': {'rank': 1.0, 'age': 36.0},
-        'Sinner': {'rank': 4.0, 'age': 22.0}
+        'Djokovic': {'rank': 1.0, 'age': 36.0, 'matches_played': 1000, 'tb_wins': 200, 'tb_played': 300},
+        'Sinner': {'rank': 4.0, 'age': 22.0, 'matches_played': 200, 'tb_wins': 40, 'tb_played': 60}
     }
 
     df_feats = preparar_features_test_estatico(df_test, elo_gen, elo_sup, stats_jugadores, seed=42)
@@ -71,6 +71,12 @@ def test_preparar_features_test_estatico():
     assert 'diff_rank' in df_feats.columns
     assert 'is_unranked' in df_feats.columns
     assert 'diff_age' in df_feats.columns
+    assert 'diff_matches_played' in df_feats.columns
+    assert 'diff_tb_ratio' in df_feats.columns
+
+    # Calcular ratios esperados
+    tb_ratio_djok = 202.0 / 304.0
+    tb_ratio_sinn = 42.0 / 64.0
 
     # Verificar que las diferencias sean correctas (respetando la simetrización aleatoria)
     label = df_feats.iloc[0]['label']
@@ -80,12 +86,16 @@ def test_preparar_features_test_estatico():
         assert df_feats.iloc[0]['diff_elo_sup'] == 1750.0 - 1620.0
         assert df_feats.iloc[0]['diff_rank'] == 1.0 - 4.0
         assert df_feats.iloc[0]['diff_age'] == 36.0 - 22.0
+        assert df_feats.iloc[0]['diff_matches_played'] == 1000.0 - 200.0
+        assert abs(df_feats.iloc[0]['diff_tb_ratio'] - (tb_ratio_djok - tb_ratio_sinn)) < 1e-6
     else:
         # A es Sinner (Loser), B es Djokovic (Winner)
         assert df_feats.iloc[0]['diff_elo_general'] == 1600.0 - 1700.0
         assert df_feats.iloc[0]['diff_elo_sup'] == 1620.0 - 1750.0
         assert df_feats.iloc[0]['diff_rank'] == 4.0 - 1.0
         assert df_feats.iloc[0]['diff_age'] == 22.0 - 36.0
+        assert df_feats.iloc[0]['diff_matches_played'] == 200.0 - 1000.0
+        assert abs(df_feats.iloc[0]['diff_tb_ratio'] - (tb_ratio_sinn - tb_ratio_djok)) < 1e-6
 
 
 def test_simular_torneo_potencia_de_dos():
@@ -102,10 +112,10 @@ def test_simular_torneo_potencia_de_dos():
 def test_simular_torneo_comportamiento_esperado():
     """Prueba el comportamiento lógico del simulador de Monte Carlo con un modelo dummy ajustado."""
     # Entrenar un modelo real extremadamente simple sobre features dummy para tener predict_proba funcional
-    X = np.array([[100.0, 100.0, -10.0, 0, 2.0],
-                  [100.0, 100.0, -10.0, 0, 2.0],
-                  [-100.0, -100.0, 10.0, 0, -2.0],
-                  [-100.0, -100.0, 10.0, 0, -2.0]])
+    X = np.array([[100.0, 100.0, -10.0, 0, 2.0, 0.0, 0.0],
+                  [100.0, 100.0, -10.0, 0, 2.0, 0.0, 0.0],
+                  [-100.0, -100.0, 10.0, 0, -2.0, 0.0, 0.0],
+                  [-100.0, -100.0, 10.0, 0, -2.0, 0.0, 0.0]])
     y = np.array([1, 1, 0, 0])
     
     modelo_base = make_pipeline(StandardScaler(), LogisticRegression())
@@ -121,10 +131,10 @@ def test_simular_torneo_comportamiento_esperado():
     elo_gen = {'Favorito': 1800.0, 'Perdedor1': 1400.0, 'Perdedor2': 1400.0, 'Perdedor3': 1400.0}
     elo_sup = {'Hard': {'Favorito': 1800.0, 'Perdedor1': 1400.0, 'Perdedor2': 1400.0, 'Perdedor3': 1400.0}}
     stats = {
-        'Favorito': {'rank': 1, 'age': 25},
-        'Perdedor1': {'rank': 100, 'age': 25},
-        'Perdedor2': {'rank': 100, 'age': 25},
-        'Perdedor3': {'rank': 100, 'age': 25}
+        'Favorito': {'rank': 1, 'age': 25, 'matches_played': 100, 'tb_wins': 10, 'tb_played': 15},
+        'Perdedor1': {'rank': 100, 'age': 25, 'matches_played': 10, 'tb_wins': 1, 'tb_played': 2},
+        'Perdedor2': {'rank': 100, 'age': 25, 'matches_played': 10, 'tb_wins': 1, 'tb_played': 2},
+        'Perdedor3': {'rank': 100, 'age': 25, 'matches_played': 10, 'tb_wins': 1, 'tb_played': 2}
     }
 
     df_prob = simular_torneo_montecarlo(

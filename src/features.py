@@ -19,6 +19,8 @@ FEATURES = [
     'diff_elo_general', 'diff_elo_sup',   # ELO separado general/superficie (el modelo aprende el peso)
     'diff_rank', 'is_unranked',           # rank capeado a 250 + indicador wildcard/qualifier (rank ausente)
     'diff_age',
+    'diff_matches_played',                # Experiencia (partidos profesionales jugados acumulados)
+    'diff_tb_ratio',                      # Tasa suavizada de tie-breaks ganados (temple bajo presión)
 ]
 
 # Ranking máximo considerado. Por encima de este umbral se satura la diferencia de rank.

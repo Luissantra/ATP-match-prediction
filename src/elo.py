@@ -73,6 +73,28 @@ def _mov_factor(winner_sets: int, loser_sets: int) -> float:
     return max(1.0, 1.0 + 0.25 * (winner_sets - loser_sets - 1))
 
 
+def _extraer_tiebreaks(score: str):
+    """
+    Extrae (winner_tb_wins, loser_tb_wins) del score.
+    Un tie-break se gana si el set score es 7-6 y se pierde si es 6-7.
+    """
+    if not score or not isinstance(score, str):
+        return (0, 0)
+    if re.search(r'\bRET\b|\bW/O\b|\bDEF\b', score, re.IGNORECASE):
+        return (0, 0)
+    sets = re.findall(r'(\d+)-(\d+)', score)
+    w_tbs = 0
+    l_tbs = 0
+    for w_games, l_games in sets:
+        w_g = int(w_games)
+        l_g = int(l_games)
+        if w_g == 7 and l_g == 6:
+            w_tbs += 1
+        elif w_g == 6 and l_g == 7:
+            l_tbs += 1
+    return (w_tbs, l_tbs)
+
+
 def _k_for_player(n_partidos: int) -> float:
     """
     K-schedule: K alto para debutantes (cold-start), decrece a 32 para titulares.
@@ -170,6 +192,8 @@ def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True,
         Rating ELO general de cada jugador al final del periodo procesado.
     elo_superficie : dict
         Rating ELO por superficie ({'Clay'|'Grass'|'Hard': {jugador: rating}}).
+    stats_acumuladas : dict
+        Estadísticas acumuladas de experiencia y tie-breaks de cada jugador.
     """
     # Diccionario para almacenar el ELO actual de cada jugador (inicializado a 1500)
     elo_general = {}
@@ -182,6 +206,8 @@ def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True,
     }
 
     n_partidos = {}  # contador de partidos jugados por jugador (para K-schedule)
+    tb_wins = {}     # tie-breaks ganados por jugador
+    tb_played = {}   # tie-breaks jugados por jugador
 
     lista_dfs = []
     
@@ -217,6 +243,11 @@ def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True,
     elo_ganador_sup_previo = []
     elo_perdedor_sup_previo = []
 
+    matches_winner_prev = []
+    matches_loser_prev = []
+    tb_ratio_winner_prev = []
+    tb_ratio_loser_prev = []
+
     print(f"-> Procesando {len(df_completo)} partidos cronológicamente...")
     for idx, row in df_completo.iterrows():
         ganador = row['winner_name']
@@ -246,6 +277,21 @@ def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True,
         elo_ganador_sup_previo.append(g_superficie)
         elo_perdedor_sup_previo.append(p_superficie)
         
+        # --- Registrar variables previas al partido ---
+        w_matches = n_partidos.get(ganador, 0)
+        l_matches = n_partidos.get(perdedor, 0)
+        matches_winner_prev.append(w_matches)
+        matches_loser_prev.append(l_matches)
+
+        w_tb_wins = tb_wins.get(ganador, 0)
+        w_tb_play = tb_played.get(ganador, 0)
+        l_tb_wins = tb_wins.get(perdedor, 0)
+        l_tb_play = tb_played.get(perdedor, 0)
+
+        # Suavizado bayesiano Beta(2, 2)
+        tb_ratio_winner_prev.append((w_tb_wins + 2.0) / (w_tb_play + 4.0))
+        tb_ratio_loser_prev.append((l_tb_wins + 2.0) / (l_tb_play + 4.0))
+        
         # --- Actualizar ELO con MOV + K-schedule ---
         score_str = str(row.get('score', '')) if 'score' in row.index else ''
         mov = _mov_factor(*_extraer_sets(score_str)) if use_mov else 1.0
@@ -268,6 +314,14 @@ def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True,
         n_partidos[ganador] = n_partidos.get(ganador, 0) + 1
         n_partidos[perdedor] = n_partidos.get(perdedor, 0) + 1
 
+        # Actualizar contadores de tie-breaks
+        w_tbs, l_tbs = _extraer_tiebreaks(score_str)
+        if w_tbs > 0 or l_tbs > 0:
+            tb_wins[ganador] = tb_wins.get(ganador, 0) + w_tbs
+            tb_played[ganador] = tb_played.get(ganador, 0) + w_tbs + l_tbs
+            tb_wins[perdedor] = tb_wins.get(perdedor, 0) + l_tbs
+            tb_played[perdedor] = tb_played.get(perdedor, 0) + w_tbs + l_tbs
+
     df_completo['elo_winner'] = elo_ganador_previo
     df_completo['elo_loser'] = elo_perdedor_previo
     df_completo['elo_winner_general'] = elo_ganador_gen_previo
@@ -275,4 +329,19 @@ def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True,
     df_completo['elo_winner_sup'] = elo_ganador_sup_previo
     df_completo['elo_loser_sup'] = elo_perdedor_sup_previo
 
-    return df_completo, elo_general, elo_superficie
+    df_completo['winner_matches_played'] = matches_winner_prev
+    df_completo['loser_matches_played'] = matches_loser_prev
+    df_completo['winner_tb_ratio'] = tb_ratio_winner_prev
+    df_completo['loser_tb_ratio'] = tb_ratio_loser_prev
+
+    # Construir diccionario acumulado final para exportación en main.py
+    stats_acumuladas = {}
+    todas_claves = set(n_partidos.keys()) | set(tb_played.keys())
+    for name in todas_claves:
+        stats_acumuladas[name] = {
+            'matches_played': n_partidos.get(name, 0),
+            'tb_wins': tb_wins.get(name, 0),
+            'tb_played': tb_played.get(name, 0)
+        }
+
+    return df_completo, elo_general, elo_superficie, stats_acumuladas

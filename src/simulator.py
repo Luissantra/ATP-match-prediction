@@ -36,12 +36,28 @@ def predecir_probabilidad_matchup(player_a, player_b, surface, modelo, elo_gener
     unranked_a = int(player_a not in stats_jugadores or rank_a >= 999)
     unranked_b = int(player_b not in stats_jugadores or rank_b >= 999)
 
+    # Experiencia
+    mp_a = stats_jugadores.get(player_a, {}).get('matches_played', 0)
+    mp_b = stats_jugadores.get(player_b, {}).get('matches_played', 0)
+    
+    # Tie-breaks
+    tb_w_a = stats_jugadores.get(player_a, {}).get('tb_wins', 0)
+    tb_p_a = stats_jugadores.get(player_a, {}).get('tb_played', 0)
+    tb_w_b = stats_jugadores.get(player_b, {}).get('tb_wins', 0)
+    tb_p_b = stats_jugadores.get(player_b, {}).get('tb_played', 0)
+
+    # Suavizado bayesiano Beta(2, 2)
+    tb_ratio_a = (tb_w_a + 2.0) / (tb_p_a + 4.0)
+    tb_ratio_b = (tb_w_b + 2.0) / (tb_p_b + 4.0)
+
     feat = {
         'diff_elo_general': gen_a - gen_b,
         'diff_elo_sup':     sup_a - sup_b,
         'diff_rank':        min(rank_a, RANK_CAP) - min(rank_b, RANK_CAP),
         'is_unranked':      unranked_a - unranked_b,
         'diff_age':         age_a - age_b,
+        'diff_matches_played': mp_a - mp_b,
+        'diff_tb_ratio':      tb_ratio_a - tb_ratio_b,
     }
 
     features = np.array([vector_from_features(feat)])

@@ -37,7 +37,7 @@ def main():
     
     # 1. Calcular ELOs y estadísticas antes de la fecha de inicio del torneo (sin leakage)
     print(f"\n[1/5] Calculando ELOs y estadísticas previos al {ao_start_date}...")
-    df_pre, elo_gen, elo_sup = calcular_elos_historicos(
+    df_pre, elo_gen, elo_sup, stats_acumuladas = calcular_elos_historicos(
         data_dir, años, hasta_fecha=ao_start_date
     )
     
@@ -46,9 +46,13 @@ def main():
         for role in [('winner_name', 'winner_rank', 'winner_age'),
                      ('loser_name',  'loser_rank',  'loser_age')]:
             name = row[role[0]]
+            sa = stats_acumuladas.get(name, {})
             stats_jugadores[name] = {
                 'rank': float(row[role[1]]) if not pd.isna(row[role[1]]) else 999.0,
                 'age':  float(row[role[2]]) if not pd.isna(row[role[2]]) else 26.0,
+                'matches_played': sa.get('matches_played', 0),
+                'tb_wins': sa.get('tb_wins', 0),
+                'tb_played': sa.get('tb_played', 0),
             }
             
     print(f"  Ratings calculados para {len(elo_gen)} jugadores.")

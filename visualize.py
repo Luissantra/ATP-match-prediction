@@ -21,8 +21,8 @@ def graficar_evolucion_elo(data_dir, años):
     """
     print("\nGenerando Gráfico de Evolución Temporal de ELO...")
 
-    # 1. Calcular el ELO histórico (devuelve df, elo_general, elo_superficie)
-    df_completo, ratings_finales, _ = calcular_elos_historicos(data_dir, años)
+    # 1. Calcular el ELO histórico (devuelve df, elo_general, elo_superficie, stats_acumuladas)
+    df_completo, ratings_finales, _, *_ = calcular_elos_historicos(data_dir, años)
 
     # 2. Identificar el Top 5 de jugadores al final del periodo
     top_5 = [j for j, _ in sorted(ratings_finales.items(), key=lambda x: x[1], reverse=True)[:5]]
@@ -85,7 +85,7 @@ def graficar_correlaciones(data_dir, años):
     (p.ej. diff_rank ↔ diff_elo) y qué features correlacionan con el resultado.
     """
     print("\nGenerando matriz de correlación de las features del modelo...")
-    df_completo, _, _ = calcular_elos_historicos(data_dir, años)
+    df_completo, _, _, *_ = calcular_elos_historicos(data_dir, años)
     feats = preparar_datos_entrenamiento(df_completo)
 
     cols = FEATURES + ['label']
@@ -94,7 +94,9 @@ def graficar_correlaciones(data_dir, años):
     labels = {
         'diff_elo_general': 'ELO General', 'diff_elo_sup': 'ELO Superficie',
         'diff_rank': 'Ranking', 'is_unranked': 'Sin Ranking',
-        'diff_age': 'Edad', 'label': 'Victoria A',
+        'diff_age': 'Edad', 
+        'diff_matches_played': 'Experiencia', 'diff_tb_ratio': 'Tie-breaks',
+        'label': 'Victoria A',
     }
     nombres = [labels.get(c, c) for c in cols]
 

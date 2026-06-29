@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     # 1. ELO histórico
     print(f"\n[1/5] Calculando ELO histórico ({AÑOS[0]}-{AÑOS[-1]})...")
-    df_completo, ratings_finales, ratings_superficie = calcular_elos_historicos("data", AÑOS)
+    df_completo, ratings_finales, ratings_superficie, stats_acumuladas = calcular_elos_historicos("data", AÑOS)
 
     top10 = sorted(ratings_finales.items(), key=lambda x: x[1], reverse=True)[:10]
     print("Top 10 ELO:")
@@ -88,6 +88,13 @@ if __name__ == "__main__":
     graficar_learning_curve(modelo_base_val, X_train, y_train, cv_splits)
     rel_data = graficar_reliability_diagram(modelo_val, X_test, y_test)
     hist_data = graficar_histograma_probas(modelo_val, X_test, y_test)
+    # Imprimir e graficar permutation importance
+    from src.evaluate import permutation_importancia
+    imp_val = permutation_importancia(modelo_val, X_test.values, y_test.values, FEATURES)
+    print("\n  Importancia de variables por Permutación en Test 2025 (Δ log-loss):")
+    for feat, imp_data in imp_val.items():
+        print(f"    {feat:20s}: mean={imp_data['mean']:.5f}  std={imp_data['std']:.5f}")
+
     graficar_permutation_importance(modelo_val, X_test.values, y_test.values, FEATURES)
     graficar_coeficientes(coefs_prod)
 
@@ -135,9 +142,13 @@ if __name__ == "__main__":
         for role in [('winner_name', 'winner_rank', 'winner_age'),
                      ('loser_name',  'loser_rank',  'loser_age')]:
             name = row[role[0]]
+            sa = stats_acumuladas.get(name, {})
             stats_jugadores[name] = {
                 'rank': float(row[role[1]]) if not pd.isna(row[role[1]]) else 999.0,
                 'age':  float(row[role[2]]) if not pd.isna(row[role[2]]) else 26.0,
+                'matches_played': sa.get('matches_played', 0),
+                'tb_wins': sa.get('tb_wins', 0),
+                'tb_played': sa.get('tb_played', 0),
             }
 
     # modelos_atp.pkl: el modelo único calibrado (LogReg de producción)
