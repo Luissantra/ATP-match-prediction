@@ -473,7 +473,36 @@ function renderPlots(data) {
         Plotly.newPlot('plot-reliability', [traceRel, tracePerf], layoutRel, {displayModeBar: false, responsive: true});
     }
 
-    // 3. Histograma de Probabilidades
+    // 3. Curva ROC (Scatter/Line)
+    if (data.roc_curve) {
+        const traceROC = {
+            x: data.roc_curve.fpr,
+            y: data.roc_curve.tpr,
+            mode: 'lines',
+            name: `LogReg (AUC = ${data.roc_curve.auc.toFixed(4)})`,
+            line: { color: '#27ae60', width: 2.5 },
+            hoverlabel: { bgcolor: '#27ae60', font: { color: 'white' } }
+        };
+        const traceDiag = {
+            x: [0, 1],
+            y: [0, 1],
+            mode: 'lines',
+            name: 'Azar (AUC = 0.5000)',
+            line: { color: 'rgba(255,255,255,0.3)', dash: 'dash', width: 1.5 },
+            hoverinfo: 'skip'
+        };
+        const layoutROC = {
+            ...layoutBase,
+            title: { text: 'Curva ROC (Discriminación)', font: { color: '#FFFFFF', size: 16 } },
+            xaxis: { title: 'Tasa de Falsos Positivos (FPR)', range: [0, 1], gridcolor: gridColor, zerolinecolor: gridColor },
+            yaxis: { title: 'Tasa de Verdaderos Positivos (TPR)', range: [0, 1.05], gridcolor: gridColor, zerolinecolor: gridColor },
+            showlegend: true,
+            legend: { orientation: 'h', x: 0.5, y: -0.25, xanchor: 'center' }
+        };
+        Plotly.newPlot('plot-roc', [traceROC, traceDiag], layoutROC, {displayModeBar: false, responsive: true});
+    }
+
+    // 4. Histograma de Probabilidades
     if (data.histogram) {
         const trace0 = {
             x: data.histogram.class_0,

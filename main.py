@@ -109,10 +109,23 @@ if __name__ == "__main__":
     print(f"\n  MODELO LogReg (Validación) — test principal {TEST_YEAR} (n={n_test}, IC95% AUC ≈ ±{ic_aprox:.3f}):")
     met_ic = evaluar_con_ic(modelo_val, X_test, y_test)
     metrics = {k: v for k, v in met_ic.items() if k in ('accuracy', 'log_loss', 'brier', 'auc')}
+
+    # Calcular curva ROC para la web (remuestreado a 100 puntos para optimizar peso de transferencia)
+    from sklearn.metrics import roc_curve
+    y_prob = modelo_val.predict_proba(X_test.values)[:, 1]
+    fpr, tpr, _ = roc_curve(y_test.values, y_prob)
+    step = max(1, len(fpr) // 100)
+    roc_data = {
+        'fpr': fpr[::step].tolist(),
+        'tpr': tpr[::step].tolist(),
+        'auc': float(metrics['auc'])
+    }
+
     metrics['plots_data'] = {
         'confusion_matrix': cm_data,
         'reliability': rel_data,
-        'histogram': hist_data
+        'histogram': hist_data,
+        'roc_curve': roc_data
     }
     print(f"    log-loss={met_ic['log_loss']:.4f} [{met_ic['log_loss_ic']['lower']:.4f}–{met_ic['log_loss_ic']['upper']:.4f}]  "
           f"AUC={met_ic['auc']:.4f} [{met_ic['auc_ic']['lower']:.4f}–{met_ic['auc_ic']['upper']:.4f}]")
