@@ -46,6 +46,7 @@ function init() {
     setupSearch(inputB, listB, 'B');
     btn.addEventListener('click', runPrediction);
     loadDisclaimer();
+    setupTournamentModal();
 }
 
 // Banner de vigencia (R4): fecha de corte servida por /api/model, no hardcodeada.
@@ -617,6 +618,206 @@ function renderEloChart(a, b) {
                 <span class="elo-bar-val">${eloB.toFixed(0)}</span>
             </div>`;
         container.appendChild(group);
+    });
+}
+
+// ----- Simulador de Torneos -----
+function setupTournamentModal() {
+    const openBtn = document.getElementById('open-tournament-btn');
+    const closeBtn = document.getElementById('close-tournament-btn');
+    const modal = document.getElementById('tournament-modal');
+    const runBtn = document.getElementById('run-tournament-btn');
+    const select = document.getElementById('tournament-select');
+    const loadingMsg = document.getElementById('tournament-loading-msg');
+    const errorMsg = document.getElementById('tournament-error-msg');
+    const resultsWrap = document.getElementById('tournament-results-wrap');
+    const tableBody = document.getElementById('tournament-table-body');
+    const tableHead = modal.querySelector('.tournament-table thead tr');
+
+    // Tabs
+    const tabDrawBtn = document.getElementById('tab-draw-btn');
+    const tabSimBtn = document.getElementById('tab-sim-btn');
+    const viewDraw = document.getElementById('view-draw');
+    const viewSim = document.getElementById('view-sim');
+    const drawGrid = document.getElementById('draw-matchups-grid');
+    const drawLoadingMsg = document.getElementById('draw-loading-msg');
+
+    if (!openBtn || !closeBtn || !modal) return;
+
+    let tournamentInfoLoaded = false;
+
+    // Función para cambiar de vista (tabs)
+    const switchTab = (tabName) => {
+        if (tabName === 'draw') {
+            tabDrawBtn.classList.add('active');
+            tabSimBtn.classList.remove('active');
+            viewDraw.classList.remove('hidden');
+            viewSim.classList.add('hidden');
+        } else {
+            tabDrawBtn.classList.remove('active');
+            tabSimBtn.classList.add('active');
+            viewDraw.classList.add('hidden');
+            viewSim.classList.remove('hidden');
+        }
+    };
+
+    if (tabDrawBtn && tabSimBtn) {
+        tabDrawBtn.addEventListener('click', () => switchTab('draw'));
+        tabSimBtn.addEventListener('click', () => switchTab('sim'));
+    }
+
+    // Cargar información inicial del torneo (Participantes y Matchups)
+    const loadTournamentInfo = async () => {
+        const tournament = select.value;
+        if (drawLoadingMsg) drawLoadingMsg.classList.remove('hidden');
+        
+        try {
+            const r = await fetch(`/api/tournament/info?tournament=${encodeURIComponent(tournament)}`);
+            if (!r.ok) {
+                const errData = await r.json();
+                throw new Error(errData.detail || 'Error cargando datos del torneo');
+            }
+            const data = await r.json();
+            
+            // Renderizar los enfrentamientos en el grid
+            drawGrid.innerHTML = '';
+            document.getElementById('draw-round-name').textContent = data.round;
+
+            data.matchups.forEach(m => {
+                const card = document.createElement('div');
+                card.className = 'matchup-card';
+                card.innerHTML = `
+                    <div class="matchup-card-header">
+                        <span>PARTIDO ${m.match_num}</span>
+                        <span>1ª RONDA</span>
+                    </div>
+                    <div class="matchup-player-row">
+                        <span class="matchup-player-name">${m.player_a.name}</span>
+                        <span class="matchup-player-meta">#${m.player_a.rank} · ELO ${Math.round(m.player_a.elo)}</span>
+                    </div>
+                    <div class="matchup-vs">VS</div>
+                    <div class="matchup-player-row">
+                        <span class="matchup-player-name">${m.player_b.name}</span>
+                        <span class="matchup-player-meta">#${m.player_b.rank} · ELO ${Math.round(m.player_b.elo)}</span>
+                    </div>
+                `;
+                drawGrid.appendChild(card);
+            });
+
+            tournamentInfoLoaded = true;
+        } catch (err) {
+            drawGrid.innerHTML = `<div class="form-error" style="padding: 20px;">${err.message}</div>`;
+        }
+    };
+
+    // Abrir modal
+    openBtn.addEventListener('click', () => {
+        modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden'; // Evitar scroll de fondo
+        
+        // Reset tabs to default (first tab)
+        switchTab('draw');
+
+        // Cargar datos del torneo si no se han cargado aún
+        loadTournamentInfo();
+    });
+
+    // Cambiar de torneo en el select
+    select.addEventListener('change', () => {
+        loadTournamentInfo();
+        // Reset simulation results
+        resultsWrap.classList.add('hidden');
+        tableBody.innerHTML = '';
+    });
+
+    // Cerrar modal
+    const closeModal = () => {
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+            closeModal();
+        }
+    });
+
+    // Correr simulación
+    runBtn.addEventListener('click', async () => {
+        const tournament = select.value;
+        
+        // UI reset
+        runBtn.disabled = true;
+        runBtn.classList.add('loading');
+        loadingMsg.classList.remove('hidden');
+        errorMsg.classList.add('hidden');
+        errorMsg.textContent = '';
+        resultsWrap.classList.add('hidden');
+        tableBody.innerHTML = '';
+
+        try {
+            const r = await fetch(`/api/tournament/simulate?tournament=${encodeURIComponent(tournament)}&simulations=5000`);
+            if (!r.ok) {
+                const errData = await r.json();
+                throw new Error(errData.detail || 'Error en la simulación');
+            }
+            const data = await r.json();
+            
+            // Actualizar etiquetas meta
+            document.getElementById('tourney-surf-tag').textContent = data.surface;
+            document.getElementById('tourney-sims-tag').textContent = `${data.simulations.toLocaleString()} sims`;
+
+            // Construir cabeceras dinámicamente (omitir primera ronda que es 100%)
+            const roundKeys = data.round_keys;
+            const displayRounds = roundKeys.length > 1 ? roundKeys.slice(1) : roundKeys;
+
+            tableHead.innerHTML = `
+                <th>Jugador</th>
+                <th>Rank</th>
+                <th>ELO Gen</th>
+                <th>ELO Sup</th>
+                ${displayRounds.map(r => `<th>${r === 'Winner' ? '🏆 Campeón' : r}</th>`).join('')}
+            `;
+
+            // Renderizar filas (Top 20 favoritos por probabilidad de ser Campeón)
+            const top20 = data.results.slice(0, 20);
+
+            top20.forEach(player => {
+                const tr = document.createElement('tr');
+                
+                // Formatear celdas de ronda
+                const roundCellsHtml = displayRounds.map(rKey => {
+                    const pct = player.probabilities[rKey] || 0.0;
+                    const style = pct > 0 ? `style="background-color: color-mix(in srgb, var(--accent) ${Math.min(pct * 0.6, 60).toFixed(1)}%, transparent)"` : '';
+                    return `<td ${style}>${pct.toFixed(1)}%</td>`;
+                }).join('');
+
+                tr.innerHTML = `
+                    <td>${player.name}</td>
+                    <td>${player.rank}</td>
+                    <td>${Math.round(player.elo_general)}</td>
+                    <td>${Math.round(player.elo_surface)}</td>
+                    ${roundCellsHtml}
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            resultsWrap.classList.remove('hidden');
+        } catch (err) {
+            errorMsg.textContent = err.message;
+            errorMsg.classList.remove('hidden');
+        } finally {
+            runBtn.disabled = false;
+            runBtn.classList.remove('loading');
+            loadingMsg.classList.add('hidden');
+        }
     });
 }
 

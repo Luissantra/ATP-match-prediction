@@ -245,6 +245,173 @@ def predict():
         return jsonify({"detail": f"Error al predecir: {e}"}), 500
 
 
+@app.route('/api/tournament/info')
+def tournament_info():
+    tourney = request.args.get('tournament', 'Australian Open')
+
+    import pandas as pd
+    ongoing_path = os.path.join("data", "ongoing_tourneys.csv")
+    if not os.path.exists(ongoing_path):
+        return jsonify({"detail": f"No se encontró el archivo de torneos en curso: {ongoing_path}"}), 404
+
+    try:
+        df_ongoing = pd.read_csv(ongoing_path)
+        df_tourney = df_ongoing[df_ongoing['tourney_name'].str.lower() == tourney.lower()].copy()
+
+        if len(df_tourney) == 0:
+            return jsonify({"detail": f"No hay datos para el torneo '{tourney}' en ongoing_tourneys.csv"}), 404
+
+        # Determinar la primera ronda
+        rondas_disponibles = df_tourney['round'].unique()
+        for r in ['R128', 'R64', 'R32', 'R16']:
+            if r in rondas_disponibles:
+                first_round = r
+                break
+        else:
+            first_round = rondas_disponibles[0]
+
+        df_first_round = df_tourney[df_tourney['round'] == first_round].copy()
+        df_first_round = df_first_round.sort_values(by='match_num')
+
+        # Extraer partidos del cuadro inicial
+        partidos = []
+        for _, row in df_first_round.iterrows():
+            player_a = row['winner_name']
+            player_b = row['loser_name']
+            
+            p_rank_a = stats_jugadores.get(player_a, {}).get('rank', 999.0)
+            p_rank_b = stats_jugadores.get(player_b, {}).get('rank', 999.0)
+            p_elo_a = elo_general.get(player_a, 1500.0)
+            p_elo_b = elo_general.get(player_b, 1500.0)
+            
+            partidos.append({
+                "match_num": int(row['match_num']),
+                "player_a": {
+                    "name": player_a,
+                    "rank": int(p_rank_a) if p_rank_a < 999 else "S/R",
+                    "elo": round(p_elo_a, 1)
+                },
+                "player_b": {
+                    "name": player_b,
+                    "rank": int(p_rank_b) if p_rank_b < 999 else "S/R",
+                    "elo": round(p_elo_b, 1)
+                }
+            })
+
+        # Obtener lista única de participantes ordenada por ELO general
+        participantes = []
+        seen = set()
+        for p in partidos:
+            for side in ['player_a', 'player_b']:
+                name = p[side]['name']
+                if name not in seen:
+                    seen.add(name)
+                    participantes.append({
+                        "name": name,
+                        "rank": p[side]['rank'],
+                        "elo": p[side]['elo']
+                    })
+        participantes.sort(key=lambda x: x['elo'], reverse=True)
+
+        return jsonify({
+            "tournament": tourney,
+            "surface": df_first_round['surface'].iloc[0] if 'surface' in df_first_round.columns else 'Hard',
+            "draw_size": len(participantes),
+            "round": first_round,
+            "participants": participantes,
+            "matchups": partidos
+        })
+    except Exception as e:
+        return jsonify({"detail": f"Error al obtener info del torneo: {str(e)}"}), 500
+
+
+@app.route('/api/tournament/simulate')
+def simulate_tournament():
+    if modelo is None:
+        if not cargar_modelo():
+            return jsonify({"detail": "Modelo no encontrado. Ejecuta python main.py primero."}), 500
+
+    tourney = request.args.get('tournament', 'Australian Open')
+    n_sims = request.args.get('simulations', default=5000, type=int)
+
+    # Validar simulations
+    if n_sims <= 0 or n_sims > 10000:
+        return jsonify({"detail": "El número de simulaciones debe estar entre 1 y 10000."}), 400
+
+    import pandas as pd
+    from src.simulator import simular_torneo_montecarlo
+
+    ongoing_path = os.path.join("data", "ongoing_tourneys.csv")
+    if not os.path.exists(ongoing_path):
+        return jsonify({"detail": f"No se encontró el archivo de torneos en curso: {ongoing_path}"}), 404
+
+    try:
+        df_ongoing = pd.read_csv(ongoing_path)
+        # Filtrar por torneo
+        df_tourney = df_ongoing[df_ongoing['tourney_name'].str.lower() == tourney.lower()].copy()
+
+        if len(df_tourney) == 0:
+            return jsonify({"detail": f"No hay datos para el torneo '{tourney}' en ongoing_tourneys.csv"}), 404
+
+        # Determinar la primera ronda
+        rondas_disponibles = df_tourney['round'].unique()
+        # Orden de prioridad de rondas iniciales
+        for r in ['R128', 'R64', 'R32', 'R16']:
+            if r in rondas_disponibles:
+                first_round = r
+                break
+        else:
+            first_round = rondas_disponibles[0]  # fallback
+
+        df_first_round = df_tourney[df_tourney['round'] == first_round].copy()
+        df_first_round = df_first_round.sort_values(by='match_num')
+
+        initial_draw = []
+        for _, row in df_first_round.iterrows():
+            initial_draw.append(row['winner_name'])
+            initial_draw.append(row['loser_name'])
+
+        # Determinar superficie
+        surface = df_first_round['surface'].iloc[0] if 'surface' in df_first_round.columns else 'Hard'
+        if surface not in ('Hard', 'Clay', 'Grass'):
+            surface = 'Hard'
+
+        # Ejecutar simulación
+        df_prob = simular_torneo_montecarlo(
+            initial_draw, surface, modelo, elo_general, elo_superficie, stats_jugadores,
+            n_simulaciones=n_sims, seed=42
+        )
+
+        # Convertir a formato amigable para el frontend
+        resultados = []
+        for player_name, row in df_prob.iterrows():
+            p_elo_gen = elo_general.get(player_name, 1500.0)
+            p_elo_sup = elo_superficie.get(surface, {}).get(player_name, 1500.0)
+            p_rank = stats_jugadores.get(player_name, {}).get('rank', 999.0)
+            
+            prob_rondas = row.to_dict()
+            
+            resultados.append({
+                "name": player_name,
+                "elo_general": round(p_elo_gen, 1),
+                "elo_surface": round(p_elo_sup, 1),
+                "rank": int(p_rank) if p_rank < 999 else "S/R",
+                "probabilities": {k: round(v, 2) for k, v in prob_rondas.items()}
+            })
+
+        return jsonify({
+            "tournament": tourney,
+            "surface": surface,
+            "round_keys": list(df_prob.columns),
+            "simulations": n_sims,
+            "results": resultados
+        })
+    except Exception as e:
+        return jsonify({"detail": f"Error al simular torneo: {str(e)}"}), 500
+
+
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
     app.run(host='0.0.0.0', port=port, debug=False)

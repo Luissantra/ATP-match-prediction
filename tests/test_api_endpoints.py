@@ -129,3 +129,39 @@ def test_predict_ambos_conocidos_no_tienen_unknown(client):
     data = client.get('/api/predict?player_a=A&player_b=B&surface=Hard').get_json()
     assert data['player_a']['unknown'] is False
     assert data['player_b']['unknown'] is False
+
+
+# ── GET /api/tournament/simulate ─────────────────────────────────────────────
+
+def test_simulate_tournament_devuelve_200(client):
+    r = client.get('/api/tournament/simulate?tournament=Australian Open&simulations=5')
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data['tournament'] == 'Australian Open'
+    assert data['simulations'] == 5
+    assert len(data['results']) > 0
+    assert 'probabilities' in data['results'][0]
+
+
+def test_simulate_tournament_invalido_devuelve_404(client):
+    r = client.get('/api/tournament/simulate?tournament=TorneoInexistente&simulations=5')
+    assert r.status_code == 404
+
+
+# ── GET /api/tournament/info ─────────────────────────────────────────────────
+
+def test_tournament_info_devuelve_200(client):
+    r = client.get('/api/tournament/info?tournament=Australian Open')
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data['tournament'] == 'Australian Open'
+    assert 'participants' in data
+    assert 'matchups' in data
+    assert len(data['matchups']) > 0
+    assert 'player_a' in data['matchups'][0]
+
+
+def test_tournament_info_invalido_devuelve_404(client):
+    r = client.get('/api/tournament/info?tournament=TorneoInexistente')
+    assert r.status_code == 404
+

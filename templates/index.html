@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=12">
+    <link rel="stylesheet" href="/static/style.css?v=14">
 </head>
 <body class="surface-hard">
 
@@ -17,7 +17,19 @@
 
         <!-- ============================ HEADER ============================ -->
         <header class="app-header">
-            <p class="eyebrow"><span class="dot"></span>ATP · MATCH FORECAST · 2026</p>
+            <div class="header-nav">
+                <p class="eyebrow"><span class="dot"></span>ATP · MATCH FORECAST · 2026</p>
+                <button id="open-tournament-btn" class="nav-tournament-btn">
+                    <svg class="icon-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 1.2em; height: 1.2em;">
+                        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                        <path d="M4 22h16"/>
+                        <path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"/>
+                        <path d="M12 2a6 6 0 0 1 6 6v3.5a6 6 0 0 1-6 6 6 6 0 0 1-6-6V8a6 6 0 0 1 6-6z"/>
+                    </svg>
+                    <span>Simular Torneo</span>
+                </button>
+            </div>
             <h1>Predicción de partido</h1>
             <p class="subtitle">Modelo de probabilidad (regresión logística calibrada) sobre ELO general y de superficie, ranking ATP y edad. Elige superficie y dos jugadores.</p>
         </header>
@@ -207,8 +219,107 @@
 
     </div>
 
+    <!-- ============================ TOURNAMENT MODAL ============================ -->
+    <div id="tournament-modal" class="modal-overlay hidden" aria-hidden="true" role="dialog" aria-labelledby="modal-title">
+        <div class="modal-container">
+            <button id="close-tournament-btn" class="modal-close-btn" aria-label="Cerrar modal">&times;</button>
+            <div class="modal-header">
+                <div class="modal-title-wrap" style="display: flex; align-items: center; gap: 16px;">
+                    <svg class="icon-trophy-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 2.2rem; height: 2.2rem; color: var(--accent); flex-shrink: 0;">
+                        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                        <path d="M4 22h16"/>
+                        <path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"/>
+                        <path d="M12 2a6 6 0 0 1 6 6v3.5a6 6 0 0 1-6 6 6 6 0 0 1-6-6V8a6 6 0 0 1 6-6z"/>
+                    </svg>
+                    <div>
+                        <h2 id="modal-title" style="margin: 0;">Simulador Monte Carlo</h2>
+                        <p class="modal-subtitle" style="margin: 4px 0 0 0;">Simulación de probabilidades de rondas para el cuadro completo basada en ELO, edad y ranking ATP.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="tournament-selector">
+                    <div class="selector-group" style="flex: 1;">
+                        <label for="tournament-select" class="field-label">Torneo disponible</label>
+                        <select id="tournament-select" class="custom-select">
+                            <option value="Australian Open">Australian Open 2026 (Dura)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Tabs para cambiar de vista -->
+                <div class="modal-tabs">
+                    <button id="tab-draw-btn" class="modal-tab active">Cuadro Inicial</button>
+                    <button id="tab-sim-btn" class="modal-tab">Predicción Monte Carlo</button>
+                </div>
+
+                <!-- View 1: Cuadro Inicial (Matchups) -->
+                <div id="view-draw" class="modal-view">
+                    <div class="draw-header-info">
+                        <h3 style="font-family: var(--display); font-size: 1.15rem; margin-bottom: 4px;">Enfrentamientos de primera ronda (<span id="draw-round-name">R128</span>)</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-mut); margin-bottom: 12px;">Estructura del cuadro para el torneo seleccionado. Los ganadores avanzan de ronda.</p>
+                    </div>
+                    <div class="draw-matchups-grid" id="draw-matchups-grid">
+                        <div class="tournament-loading-msg" id="draw-loading-msg">
+                            <span class="loading-spinner"></span>
+                            <p>Cargando información del torneo...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View 2: Simulación Monte Carlo -->
+                <div id="view-sim" class="modal-view hidden">
+                    <div class="sim-controls">
+                        <button id="run-tournament-btn" class="serve-btn" style="flex: 1; max-width: 280px; padding: 14px;">
+                            <span class="btn-text">Iniciar Simulación (5,000 sims)</span>
+                            <span class="spinner" aria-hidden="true"></span>
+                        </button>
+                        <p class="sim-help-text">Simula el torneo completo 5,000 veces calculando probabilidades ronda por ronda.</p>
+                    </div>
+
+                    <div id="tournament-loading-msg" class="tournament-loading-msg hidden">
+                        <span class="loading-spinner"></span>
+                        <p>Simulando cuadro de torneo... Esto tomará entre 2 y 3 segundos.</p>
+                    </div>
+                    
+                    <div id="tournament-error-msg" class="form-error hidden"></div>
+                    
+                    <div id="tournament-results-wrap" class="tournament-results hidden">
+                        <div class="tournament-meta">
+                            <span class="meta-tag" id="tourney-surf-tag">Dura</span>
+                            <span class="meta-tag" id="tourney-sims-tag">5,000 sims</span>
+                        </div>
+                        <div class="table-container">
+                            <table class="tournament-table">
+                                <thead>
+                                    <tr>
+                                        <th>Jugador</th>
+                                        <th>Rank</th>
+                                        <th>ELO Gen</th>
+                                        <th>ELO Sup</th>
+                                        <th>R64</th>
+                                        <th>R32</th>
+                                        <th>R16</th>
+                                        <th>QF</th>
+                                        <th>SF</th>
+                                        <th>F</th>
+                                        <th>Ganador</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tournament-table-body">
+                                    <!-- Filas cargadas dinámicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
-    <script src="/static/format.js?v=12"></script>
-    <script src="/static/script.js?v=12"></script>
+    <script src="/static/format.js?v=14"></script>
+    <script src="/static/script.js?v=14"></script>
 </body>
 </html>
