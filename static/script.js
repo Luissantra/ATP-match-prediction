@@ -745,15 +745,31 @@ function setupTournamentModal() {
     };
 
     // Abrir modal
-    openBtn.addEventListener('click', () => {
+    const populateSelect = async () => {
+        try {
+            const r = await fetch('/api/tournaments');
+            if (!r.ok) return;
+            const data = await r.json();
+            if (!data.tournaments || data.tournaments.length === 0) return;
+            const surfaceLabel = { Hard: 'Dura', Clay: 'Tierra', Grass: 'Césped' };
+            select.innerHTML = '';
+            data.tournaments.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.name;
+                opt.textContent = `${t.name} (${surfaceLabel[t.surface] || t.surface})`;
+                select.appendChild(opt);
+            });
+        } catch (_) {
+            // fallback: mantener la opción hardcodeada existente
+        }
+    };
+
+    openBtn.addEventListener('click', async () => {
         modal.classList.remove('hidden');
         modal.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden'; // Evitar scroll de fondo
-        
-        // Reset tabs to default (first tab)
         switchTab('draw');
-
-        // Cargar datos del torneo si no se han cargado aún
+        await populateSelect();
         loadTournamentInfo();
     });
 
