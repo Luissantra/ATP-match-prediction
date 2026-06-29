@@ -97,23 +97,13 @@ def construir_features(player_a, player_b, surface):
     age_a = stats_jugadores.get(player_a, {}).get('age', 26.0)
     age_b = stats_jugadores.get(player_b, {}).get('age', 26.0)
 
-    # is_unranked: jugador sin ranking real conocido (desconocido o sentinela 999).
-    unranked_a = int(player_a not in stats_jugadores or rank_a >= 999)
-    unranked_b = int(player_b not in stats_jugadores or rank_b >= 999)
-
-    # Experiencia
-    mp_a = stats_jugadores.get(player_a, {}).get('matches_played', 0)
-    mp_b = stats_jugadores.get(player_b, {}).get('matches_played', 0)
-    
-    # Tie-breaks
-    tb_w_a = stats_jugadores.get(player_a, {}).get('tb_wins', 0)
-    tb_p_a = stats_jugadores.get(player_a, {}).get('tb_played', 0)
-    tb_w_b = stats_jugadores.get(player_b, {}).get('tb_wins', 0)
-    tb_p_b = stats_jugadores.get(player_b, {}).get('tb_played', 0)
-
-    # Suavizado bayesiano Beta(2, 2)
-    tb_ratio_a = (tb_w_a + 2.0) / (tb_p_a + 4.0)
-    tb_ratio_b = (tb_w_b + 2.0) / (tb_p_b + 4.0)
+    # is_unranked: se sirve el flag de la máscara NaN real (exportado en stats_jugadores),
+    # no se recalcula con rank>=999 → sin train/serve skew. Desconocido → 1; si un pkl
+    # antiguo no trae el flag, fallback a rank>=999.
+    info_a = stats_jugadores.get(player_a)
+    info_b = stats_jugadores.get(player_b)
+    unranked_a = 1 if info_a is None else int(info_a.get('is_unranked', int(rank_a >= 999)))
+    unranked_b = 1 if info_b is None else int(info_b.get('is_unranked', int(rank_b >= 999)))
 
     return {
         'diff_elo_general': gen_a - gen_b,
@@ -121,8 +111,6 @@ def construir_features(player_a, player_b, surface):
         'diff_rank':        min(rank_a, RANK_CAP) - min(rank_b, RANK_CAP),
         'is_unranked':      unranked_a - unranked_b,
         'diff_age':         age_a - age_b,
-        'diff_matches_played': mp_a - mp_b,
-        'diff_tb_ratio':      tb_ratio_a - tb_ratio_b,
     }
 
 
@@ -184,8 +172,6 @@ def _predecir_con(modelo_usado, player_a, player_b, surface):
             "diff_rank":        int(feat['diff_rank']),
             "is_unranked":      int(feat['is_unranked']),
             "diff_age":         round(feat['diff_age'], 2),
-            "diff_matches_played": int(feat['diff_matches_played']),
-            "diff_tb_ratio":      round(feat['diff_tb_ratio'], 4),
         },
         "predicted_winner": player_a if prob_a > prob_b else player_b,
     }

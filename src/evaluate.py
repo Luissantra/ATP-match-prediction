@@ -333,8 +333,6 @@ def graficar_permutation_importance(modelo, X, y, features, n_repeats=30, seed=4
         'diff_rank':         'Ranking',
         'is_unranked':       'Sin Ranking',
         'diff_age':          'Edad',
-        'diff_matches_played': 'Experiencia',
-        'diff_tb_ratio':      'Tie-breaks',
     }
     feats_sorted = list(imp.keys())
     means = np.array([imp[f]['mean'] for f in feats_sorted])

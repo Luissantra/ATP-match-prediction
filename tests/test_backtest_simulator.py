@@ -71,12 +71,8 @@ def test_preparar_features_test_estatico():
     assert 'diff_rank' in df_feats.columns
     assert 'is_unranked' in df_feats.columns
     assert 'diff_age' in df_feats.columns
-    assert 'diff_matches_played' in df_feats.columns
-    assert 'diff_tb_ratio' in df_feats.columns
-
-    # Calcular ratios esperados
-    tb_ratio_djok = 202.0 / 304.0
-    tb_ratio_sinn = 42.0 / 64.0
+    assert 'diff_matches_played' not in df_feats.columns
+    assert 'diff_tb_ratio' not in df_feats.columns
 
     # Verificar que las diferencias sean correctas (respetando la simetrización aleatoria)
     label = df_feats.iloc[0]['label']
@@ -86,16 +82,12 @@ def test_preparar_features_test_estatico():
         assert df_feats.iloc[0]['diff_elo_sup'] == 1750.0 - 1620.0
         assert df_feats.iloc[0]['diff_rank'] == 1.0 - 4.0
         assert df_feats.iloc[0]['diff_age'] == 36.0 - 22.0
-        assert df_feats.iloc[0]['diff_matches_played'] == 1000.0 - 200.0
-        assert abs(df_feats.iloc[0]['diff_tb_ratio'] - (tb_ratio_djok - tb_ratio_sinn)) < 1e-6
     else:
         # A es Sinner (Loser), B es Djokovic (Winner)
         assert df_feats.iloc[0]['diff_elo_general'] == 1600.0 - 1700.0
         assert df_feats.iloc[0]['diff_elo_sup'] == 1620.0 - 1750.0
         assert df_feats.iloc[0]['diff_rank'] == 4.0 - 1.0
         assert df_feats.iloc[0]['diff_age'] == 22.0 - 36.0
-        assert df_feats.iloc[0]['diff_matches_played'] == 200.0 - 1000.0
-        assert abs(df_feats.iloc[0]['diff_tb_ratio'] - (tb_ratio_sinn - tb_ratio_djok)) < 1e-6
 
 
 def test_simular_torneo_potencia_de_dos():
@@ -112,10 +104,10 @@ def test_simular_torneo_potencia_de_dos():
 def test_simular_torneo_comportamiento_esperado():
     """Prueba el comportamiento lógico del simulador de Monte Carlo con un modelo dummy ajustado."""
     # Entrenar un modelo real extremadamente simple sobre features dummy para tener predict_proba funcional
-    X = np.array([[100.0, 100.0, -10.0, 0, 2.0, 0.0, 0.0],
-                  [100.0, 100.0, -10.0, 0, 2.0, 0.0, 0.0],
-                  [-100.0, -100.0, 10.0, 0, -2.0, 0.0, 0.0],
-                  [-100.0, -100.0, 10.0, 0, -2.0, 0.0, 0.0]])
+    X = np.array([[100.0, 100.0, -10.0, 0, 2.0],
+                  [100.0, 100.0, -10.0, 0, 2.0],
+                  [-100.0, -100.0, 10.0, 0, -2.0],
+                  [-100.0, -100.0, 10.0, 0, -2.0]])
     y = np.array([1, 1, 0, 0])
     
     modelo_base = make_pipeline(StandardScaler(), LogisticRegression())

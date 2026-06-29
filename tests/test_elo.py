@@ -22,15 +22,14 @@ def _make_df():
     ])
 
 
-def test_devuelve_cuatro_valores(tmp_path):
-    """El motor devuelve (df, elo_general, elo_superficie, stats_acumuladas) — con experiencia/tie-breaks."""
+def test_devuelve_tres_valores(tmp_path):
+    """El motor devuelve (df, elo_general, elo_superficie)."""
     df = _make_df()
     df.to_csv(tmp_path / "2024.csv", index=False)
     resultado = calcular_elos_historicos(str(tmp_path), [2024])
-    assert len(resultado) == 4
-    _, elo_general, elo_superficie, stats_acumuladas = resultado
+    assert len(resultado) == 3
+    _, elo_general, elo_superficie = resultado
     assert isinstance(elo_general, dict)
-    assert isinstance(stats_acumuladas, dict)
     assert set(elo_superficie.keys()) == {'Clay', 'Grass', 'Hard'}
 
 
@@ -128,16 +127,3 @@ def test_sin_mov_sin_k_igual_que_antes(tmp_path):
     e_A = calcular_expectativa(1500.0, 1500.0)
     nuevo_A, _ = actualizar_ratings(1500.0, 1500.0, resultado_A=1, K=32)
     assert abs(elo_legacy['A'] - nuevo_A) < 1e-6
-
-
-def test_extraer_tiebreaks():
-    from src.elo import _extraer_tiebreaks
-    # Sin tiebreak
-    assert _extraer_tiebreaks('6-3 6-4') == (0, 0)
-    # Un tiebreak para el ganador
-    assert _extraer_tiebreaks('7-6(5) 6-4') == (1, 0)
-    # Un tiebreak para el perdedor y uno para el ganador
-    assert _extraer_tiebreaks('7-6(5) 6-7(3) 6-4') == (1, 1)
-    # Partido incompleto / retirado / WO
-    assert _extraer_tiebreaks('6-3 RET') == (0, 0)
-    assert _extraer_tiebreaks('W/O') == (0, 0)

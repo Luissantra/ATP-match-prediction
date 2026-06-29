@@ -14,9 +14,9 @@ import app
 
 
 def _mock_modelo():
-    """LogReg trivial que devuelve probabilidades válidas. 7 features = len(FEATURES)."""
+    """LogReg trivial que devuelve probabilidades válidas. 5 features = len(FEATURES)."""
     m = LogisticRegression()
-    m.fit([[0, 0, 0, 0, 0, 0, 0], [1, 1, 1, 1, 1, 1, 1]], [0, 1])
+    m.fit([[0, 0, 0, 0, 0], [1, 1, 1, 1, 1]], [0, 1])
     return m
 
 
@@ -84,11 +84,10 @@ def test_predict_probas_suman_100(client):
     assert abs(total - 100.0) < 0.2
 
 
-def test_predict_features_debug_tiene_7_features(client):
+def test_predict_features_debug_tiene_5_features(client):
     data = client.get('/api/predict?player_a=A&player_b=B&surface=Hard').get_json()
     assert set(data['features_debug'].keys()) == {
         'diff_elo_general', 'diff_elo_sup', 'diff_rank', 'is_unranked', 'diff_age',
-        'diff_matches_played', 'diff_tb_ratio',
     }
 
 

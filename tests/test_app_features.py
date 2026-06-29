@@ -57,6 +57,27 @@ def test_is_unranked_detecta_jugador_desconocido():
     assert feat['is_unranked'] == 1
 
 
+def test_is_unranked_usa_flag_servido_no_rank999(monkeypatch):
+    # Jugador con rank real alto (>=999) pero is_unranked=0 en stats: NO debe marcarse
+    # sin-ranking (evita el train/serve skew de recalcular rank>=999 en inferencia).
+    monkeypatch.setattr(app, 'stats_jugadores', {
+        'HighRank': {'rank': 1250.0, 'age': 28.0, 'is_unranked': 0},
+        'B': {'rank': 20.0, 'age': 30.0, 'is_unranked': 0},
+    })
+    feat = app.construir_features('HighRank', 'B', 'Hard')
+    assert feat['is_unranked'] == 0
+
+
+def test_is_unranked_fallback_rank999_si_falta_flag(monkeypatch):
+    # pkl antiguo sin el flag → fallback a rank>=999 (compatibilidad hacia atrás).
+    monkeypatch.setattr(app, 'stats_jugadores', {
+        'WC': {'rank': 999.0, 'age': 22.0},
+        'B': {'rank': 20.0, 'age': 30.0},
+    })
+    feat = app.construir_features('WC', 'B', 'Hard')
+    assert feat['is_unranked'] == 1
+
+
 def test_jugadores_desconocidos_son_neutros():
     feat = app.construir_features('X', 'Z', 'Hard')
     assert feat['diff_elo_general'] == pytest.approx(0.0)

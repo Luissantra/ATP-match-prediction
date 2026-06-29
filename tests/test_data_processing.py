@@ -8,13 +8,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from src.data_processing import preparar_datos_entrenamiento as _real_preparar
 
 def preparar_datos_entrenamiento(df, *args, **kwargs):
-    df = df.copy()
-    for col in ['winner_matches_played', 'loser_matches_played']:
-        if col not in df.columns:
-            df[col] = 0.0
-    for col in ['winner_tb_ratio', 'loser_tb_ratio']:
-        if col not in df.columns:
-            df[col] = 0.5
     return _real_preparar(df, *args, **kwargs)
 
 
@@ -64,7 +57,7 @@ def test_total_feature_columns():
         'year', 'tourney_date', 'surface',
         'diff_elo_general', 'diff_elo_sup',
         'diff_rank', 'is_unranked',
-        'diff_age', 'diff_matches_played', 'diff_tb_ratio', 'label',
+        'diff_age', 'label',
     }
     assert set(result.columns) == expected
 

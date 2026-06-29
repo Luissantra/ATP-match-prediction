@@ -23,8 +23,6 @@ class TestVectorFromFeatures:
             'diff_elo_general': 100.0, 'diff_elo_sup': 200.0,
             'diff_rank': -5.0, 'is_unranked': 0,
             'diff_age': 2.0,
-            'diff_matches_played': 50.0,
-            'diff_tb_ratio': 0.1,
         }
 
     def test_orden_coincide_con_FEATURES(self):
@@ -41,8 +39,8 @@ class TestVectorFromFeatures:
         with pytest.raises(KeyError):
             vector_from_features(feat)
 
-    def test_features_tiene_7_elementos(self):
-        assert len(FEATURES) == 7
+    def test_features_tiene_5_elementos(self):
+        assert len(FEATURES) == 5
 
     def test_features_no_incluye_h2h_form_level(self):
         for podada in ('diff_h2h', 'diff_form', 'tourney_level_num'):

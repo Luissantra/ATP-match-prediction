@@ -97,12 +97,6 @@ def preparar_datos_entrenamiento(df_con_elo, seed=42):
     age_a  = np.where(shuffle, df['winner_age'],       df['loser_age'])
     age_b  = np.where(shuffle, df['loser_age'],        df['winner_age'])
 
-    # Experiencia y tie-breaks
-    matches_a = np.where(shuffle, df['winner_matches_played'], df['loser_matches_played'])
-    matches_b = np.where(shuffle, df['loser_matches_played'],  df['winner_matches_played'])
-    tb_a = np.where(shuffle, df['winner_tb_ratio'], df['loser_tb_ratio'])
-    tb_b = np.where(shuffle, df['loser_tb_ratio'],  df['winner_tb_ratio'])
-
     return pd.DataFrame({
         'year':             df['tourney_date'].astype(str).str[:4].astype(int).values,
         'tourney_date':     df['tourney_date'].values,  # yyyymmdd, para el embargo temporal del CV
@@ -112,7 +106,5 @@ def preparar_datos_entrenamiento(df_con_elo, seed=42):
         'diff_rank':        np.minimum(rank_a_raw, RANK_CAP) - np.minimum(rank_b_raw, RANK_CAP),
         'is_unranked':      unranked_a.astype(int) - unranked_b.astype(int),
         'diff_age':         age_a - age_b,
-        'diff_matches_played': matches_a - matches_b,
-        'diff_tb_ratio':      tb_a - tb_b,
         'label':            np.where(shuffle, 1, 0),
     })

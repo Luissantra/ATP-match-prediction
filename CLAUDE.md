@@ -43,7 +43,7 @@ Pipeline en dos etapas separadas. La **fuente única de verdad del vector de fea
 **Entrenamiento (`main.py` → `src/`)**
 1. `src/elo.py` — ratings ELO históricos (general + por superficie) iterando partidos cronológicamente, pre-partido (sin leakage). MOV + K-schedule activos. Devuelve `(df, elo_general, elo_superficie)`.
 2. `src/data_processing.py` — simetrización vectorizada (Ganador/Perdedor → Jugador A/B) para evitar label leakage; balance 50/50. Propaga `tourney_date` para el embargo del CV. `is_unranked` desde la máscara NaN real del rank (no el centinela 999).
-3. `src/features.py` — `FEATURES` (5: `diff_elo_general`, `diff_elo_sup`, `diff_rank`, `is_unranked`, `diff_age`), `RANK_CAP`, `elo_hibrido()`, `vector_from_features()`. **No reordenar `FEATURES` sin reentrenar.** (h2h/forma/nivel-torneo se podaron: perm. importance ~0; ver `docs/ROADMAP.md`.)
+3. `src/features.py` — `FEATURES` (5: `diff_elo_general`, `diff_elo_sup`, `diff_rank`, `is_unranked`, `diff_age`), `RANK_CAP`, `elo_hibrido()`, `vector_from_features()`. **No reordenar `FEATURES` sin reentrenar.** (Podas: h2h/forma/nivel-torneo por perm. importance ~0; `diff_matches_played`/`diff_tb_ratio` el 2026-06-29 — la primera ruido puro, la segunda significativa por bootstrap pareado pero aporte trivial (+0.002 AUC) → minimalismo: solo features con relevancia práctica. Ver `docs/ROADMAP.md`.)
 4. `src/cv.py` — `purged_time_series_splits()`: `TimeSeriesSplit` con embargo temporal (purga las filas a <N días del fold de validación; rompe la fuga blanda en la frontera).
 5. `src/train.py` — modelo único: `entrenar_modelo()` (LogReg estandarizada + `GridSearchCV(neg_log_loss)` sobre `C` + CV temporal purgado), `calibrar_modelo()` (sigmoid/Platt), `coeficientes_modelo()` (odds-ratio para explicabilidad). LogReg iguala a GBM/RF/XGBoost en AUC con coeficientes interpretables.
 6. `src/evaluate.py` — `evaluar()`, `evaluar_con_ic()`, `bootstrap_ic95()`, `evaluar_baseline_elo()` (baseline ELO **híbrido**), `graficar_coeficientes()`; plots (matriz confusión, permutation importance, coeficientes, reliability diagram, histograma probas, learning curve, precisión por superficie).
@@ -53,7 +53,7 @@ Pipeline en dos etapas separadas. La **fuente única de verdad del vector de fea
 - Flask. Puerto configurable vía env `PORT` (default 8000 local; la imagen Docker fija 7860 para HF Spaces). Estado global de solo lectura cargado de los `.pkl` (apto para varios workers gunicorn).
 - Endpoints: `GET /api/players` (lista por ELO), `GET /api/predict?player_a=X&player_b=Y&surface=Z`, `GET /api/model` (métricas + coeficientes + `trained_through`/`tested_on`).
 - `/api/predict` devuelve por jugador `elo_surfaces` (ELO en Hard/Clay/Grass) para la gráfica multi-superficie del frontend, además de `elo_general`/`elo_surface`/`elo_hybrid`/`rank`/`age`/`prob_victory`/`unknown`.
-- `construir_features()` reconstruye las 5 features con la misma semántica que el entrenamiento. La inferencia sirve numpy (evita warning de feature-names).
+- `construir_features()` reconstruye las 5 features con la misma semántica que el entrenamiento. La inferencia sirve numpy (evita warning de feature-names). `is_unranked` se sirve desde el flag exportado en `stats_jugadores` (máscara NaN real del entrenamiento), no se recalcula con `rank>=999` → sin train/serve skew (jugadores con rank real alto no se marcan sin-ranking).
 - `verificar_version_sklearn()` avisa si el pkl se entrenó con otra versión.
 - Valida: superficie ∈ {Hard, Clay, Grass}, `player_a != player_b`, params presentes.
 

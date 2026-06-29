@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     # 1. ELO histórico
     print(f"\n[1/5] Calculando ELO histórico ({AÑOS[0]}-{AÑOS[-1]})...")
-    df_completo, ratings_finales, ratings_superficie, stats_acumuladas = calcular_elos_historicos("data", AÑOS)
+    df_completo, ratings_finales, ratings_superficie = calcular_elos_historicos("data", AÑOS)
 
     top10 = sorted(ratings_finales.items(), key=lambda x: x[1], reverse=True)[:10]
     print("Top 10 ELO:")
@@ -155,13 +155,12 @@ if __name__ == "__main__":
         for role in [('winner_name', 'winner_rank', 'winner_age'),
                      ('loser_name',  'loser_rank',  'loser_age')]:
             name = row[role[0]]
-            sa = stats_acumuladas.get(name, {})
             stats_jugadores[name] = {
                 'rank': float(row[role[1]]) if not pd.isna(row[role[1]]) else 999.0,
                 'age':  float(row[role[2]]) if not pd.isna(row[role[2]]) else 26.0,
-                'matches_played': sa.get('matches_played', 0),
-                'tb_wins': sa.get('tb_wins', 0),
-                'tb_played': sa.get('tb_played', 0),
+                # Flag desde la máscara NaN real (igual que el entrenamiento). Servir el flag
+                # evita el train/serve skew de recalcular rank>=999 en inferencia.
+                'is_unranked': int(pd.isna(row[role[1]])),
             }
 
     # modelos_atp.pkl: el modelo único calibrado (LogReg de producción)

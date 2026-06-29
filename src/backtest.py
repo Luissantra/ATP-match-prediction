@@ -49,25 +49,16 @@ def preparar_features_test_estatico(df_test_raw, elo_general, elo_superficie, st
         age_w = stats_jugadores.get(ganador, {}).get('age', row['winner_age'])
         age_l = stats_jugadores.get(perdedor, {}).get('age', row['loser_age'])
 
+        # is_unranked desde la máscara NaN real (igual que el entrenamiento), ANTES de
+        # imputar: evita marcar como "sin ranking" a jugadores con rank real alto (>999).
+        unranked_w = int(pd.isna(rank_w))
+        unranked_l = int(pd.isna(rank_l))
+
         # Imputaciones fallback
         rank_w = 999.0 if pd.isna(rank_w) else float(rank_w)
         rank_l = 999.0 if pd.isna(rank_l) else float(rank_l)
         age_w = 26.0 if pd.isna(age_w) else float(age_w)
         age_l = 26.0 if pd.isna(age_l) else float(age_l)
-
-        unranked_w = int(rank_w >= 999)
-        unranked_l = int(rank_l >= 999)
-
-        # Experiencia y tie-breaks
-        mp_w = stats_jugadores.get(ganador, {}).get('matches_played', 0)
-        mp_l = stats_jugadores.get(perdedor, {}).get('matches_played', 0)
-        tb_w_wins = stats_jugadores.get(ganador, {}).get('tb_wins', 0)
-        tb_w_play = stats_jugadores.get(ganador, {}).get('tb_played', 0)
-        tb_l_wins = stats_jugadores.get(perdedor, {}).get('tb_wins', 0)
-        tb_l_play = stats_jugadores.get(perdedor, {}).get('tb_played', 0)
-
-        tb_ratio_w = (tb_w_wins + 2.0) / (tb_w_play + 4.0)
-        tb_ratio_l = (tb_l_wins + 2.0) / (tb_l_play + 4.0)
 
         # Simetrizar
         is_shuffled = shuffle[idx]
@@ -78,8 +69,6 @@ def preparar_features_test_estatico(df_test_raw, elo_general, elo_superficie, st
             diff_rank = min(rank_w, RANK_CAP) - min(rank_l, RANK_CAP)
             is_unranked = unranked_w - unranked_l
             diff_age = age_w - age_l
-            diff_matches_played = mp_w - mp_l
-            diff_tb_ratio = tb_ratio_w - tb_ratio_l
             label = 1
         else:
             # Jugador A es Perdedor, Jugador B es Ganador
@@ -88,8 +77,6 @@ def preparar_features_test_estatico(df_test_raw, elo_general, elo_superficie, st
             diff_rank = min(rank_l, RANK_CAP) - min(rank_w, RANK_CAP)
             is_unranked = unranked_l - unranked_w
             diff_age = age_l - age_w
-            diff_matches_played = mp_l - mp_w
-            diff_tb_ratio = tb_ratio_l - tb_ratio_w
             label = 0
 
         rows.append({
@@ -98,8 +85,6 @@ def preparar_features_test_estatico(df_test_raw, elo_general, elo_superficie, st
             'diff_rank': diff_rank,
             'is_unranked': is_unranked,
             'diff_age': diff_age,
-            'diff_matches_played': diff_matches_played,
-            'diff_tb_ratio': diff_tb_ratio,
             'label': label
         })
 
@@ -111,7 +96,7 @@ def ejecutar_backtest_checkpoint(data_dir, años, checkpoint_date, tourney_name,
     Ejecuta el entrenamiento y prueba para un único checkpoint de torneo.
     """
     # 1. Calcular el ELO histórico de los partidos previos al inicio del torneo
-    df_pre_tourney, elo_gen, elo_sup, stats_acumuladas = calcular_elos_historicos(
+    df_pre_tourney, elo_gen, elo_sup = calcular_elos_historicos(
         data_dir, años, hasta_fecha=checkpoint_date
     )
 
@@ -121,13 +106,9 @@ def ejecutar_backtest_checkpoint(data_dir, años, checkpoint_date, tourney_name,
         for role in [('winner_name', 'winner_rank', 'winner_age'),
                      ('loser_name',  'loser_rank',  'loser_age')]:
             name = row[role[0]]
-            sa = stats_acumuladas.get(name, {})
             stats_jugadores[name] = {
                 'rank': float(row[role[1]]) if not pd.isna(row[role[1]]) else 999.0,
                 'age':  float(row[role[2]]) if not pd.isna(row[role[2]]) else 26.0,
-                'matches_played': sa.get('matches_played', 0),
-                'tb_wins': sa.get('tb_wins', 0),
-                'tb_played': sa.get('tb_played', 0),
             }
 
     # 3. Preparar dataset de entrenamiento (solo partidos previos)
