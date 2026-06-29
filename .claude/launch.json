@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "flask-dev",
-      "runtimeExecutable": "python",
+      "runtimeExecutable": "/Users/luissantra/Projects/ATP Prediction/venv/bin/python",
       "runtimeArgs": ["app.py"],
       "port": 8000
     },

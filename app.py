@@ -341,9 +341,12 @@ def tournament_info():
                     })
         participantes.sort(key=lambda x: x['elo'], reverse=True)
 
+        tourney_level = str(df_tourney['tourney_level'].iloc[0]) if 'tourney_level' in df_tourney.columns else '250'
+
         return jsonify({
             "tournament": tourney,
             "surface": df_first_round['surface'].iloc[0] if 'surface' in df_first_round.columns else 'Hard',
+            "level": tourney_level,
             "draw_size": len(participantes),
             "round": first_round,
             "participants": participantes,

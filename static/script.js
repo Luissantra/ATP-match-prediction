@@ -676,9 +676,38 @@ function setupTournamentModal() {
     const drawGrid = document.getElementById('draw-matchups-grid');
     const drawLoadingMsg = document.getElementById('draw-loading-msg');
 
+    // Toggles de vista (Lista / Bracket)
+    const toggleList = document.getElementById('view-toggle-list');
+    const toggleBracket = document.getElementById('view-toggle-bracket');
+    const drawBracketWrapper = document.getElementById('draw-bracket-wrapper');
+    const drawBracketContainer = document.getElementById('draw-bracket-container');
+
     if (!openBtn || !closeBtn || !modal) return;
 
     let tournamentInfoLoaded = false;
+    let currentViewMode = 'list'; // 'list' o 'bracket'
+    let initialDrawOrder = []; // Jugadores en orden del cuadro para mapear las ramas del bracket
+
+    // Función para alternar vista del cuadro (Lista / Bracket)
+    const updateViewMode = (mode) => {
+        currentViewMode = mode;
+        if (mode === 'list') {
+            if (toggleList) toggleList.classList.add('active');
+            if (toggleBracket) toggleBracket.classList.remove('active');
+            if (drawGrid) drawGrid.classList.remove('hidden');
+            if (drawBracketWrapper) drawBracketWrapper.classList.add('hidden');
+        } else {
+            if (toggleList) toggleList.classList.remove('active');
+            if (toggleBracket) toggleBracket.classList.add('active');
+            if (drawGrid) drawGrid.classList.add('hidden');
+            if (drawBracketWrapper) drawBracketWrapper.classList.remove('hidden');
+        }
+    };
+
+    if (toggleList && toggleBracket) {
+        toggleList.addEventListener('click', () => updateViewMode('list'));
+        toggleBracket.addEventListener('click', () => updateViewMode('bracket'));
+    }
 
     // Función para cambiar de vista (tabs)
     const switchTab = (tabName) => {
@@ -712,8 +741,53 @@ function setupTournamentModal() {
                 throw new Error(errData.detail || 'Error cargando datos del torneo');
             }
             const data = await r.json();
+
+            // Persistir orden del cuadro inicial
+            initialDrawOrder = [];
+            data.matchups.forEach(m => {
+                initialDrawOrder.push(m.player_a);
+                initialDrawOrder.push(m.player_b);
+            });
             
-            // Renderizar los enfrentamientos en el grid
+            // Completar con placeholders si el tamaño del cuadro no es potencia de 2 (coincide con backend)
+            let nDraw = initialDrawOrder.length;
+            if (nDraw > 0 && (nDraw & (nDraw - 1)) !== 0) {
+                let targetDraw = Math.pow(2, Math.ceil(Math.log2(nDraw)));
+                while (initialDrawOrder.length < targetDraw) {
+                    initialDrawOrder.push(null);
+                }
+            }
+            
+            // Mapeador de categorías y puntos de torneos
+            const levelInfo = {
+                'G': { label: 'Grand Slam', points: '2,000 pts', class: 'level-g' },
+                'M': { label: 'Masters 1000', points: '1,000 pts', class: 'level-m' },
+                'F': { label: 'ATP Finals', points: '1,500 pts max', class: 'level-f' },
+                '500': { label: 'ATP 500', points: '500 pts', class: 'level-500' },
+                '250': { label: 'ATP 250', points: '250 pts', class: 'level-250' },
+                'D': { label: 'Copa Davis', points: '—', class: 'level-d' },
+                'A': { label: 'ATP Tour (Otros)', points: '250 pts', class: 'level-a' },
+                'O': { label: 'Juegos Olímpicos', points: '—', class: 'level-o' }
+            };
+
+            const levelMeta = levelInfo[data.level] || { label: 'Torneo ATP', points: '—', class: 'level-default' };
+            const surfaceLabel = { Hard: 'Dura', Clay: 'Tierra', Grass: 'Césped' };
+
+            // Actualizar banner de metadatos
+            const levelVal = document.getElementById('info-tourney-level');
+            const pointsVal = document.getElementById('info-tourney-points');
+            const surfaceVal = document.getElementById('info-tourney-surface');
+            const sizeVal = document.getElementById('info-tourney-size');
+
+            if (levelVal) {
+                levelVal.textContent = levelMeta.label;
+                levelVal.className = 'info-badge-value ' + levelMeta.class;
+            }
+            if (pointsVal) pointsVal.textContent = levelMeta.points;
+            if (surfaceVal) surfaceVal.textContent = surfaceLabel[data.surface] || data.surface;
+            if (sizeVal) sizeVal.textContent = `${data.draw_size} Jugadores`;
+
+            // Renderizar los enfrentamientos en la vista Lista
             drawGrid.innerHTML = '';
             document.getElementById('draw-round-name').textContent = data.round;
 
@@ -738,9 +812,249 @@ function setupTournamentModal() {
                 drawGrid.appendChild(card);
             });
 
+            // Renderizar el Bracket dinámico
+            if (drawBracketContainer) {
+                drawBracketContainer.innerHTML = '';
+                
+                const roundsAll = ['R128', 'R64', 'R32', 'R16', 'QF', 'SF', 'F', 'Campeón'];
+                const startIdx = roundsAll.indexOf(data.round);
+                const displayRounds = startIdx !== -1 ? roundsAll.slice(startIdx) : ['R32', 'R16', 'QF', 'SF', 'F', 'Campeón'];
+                
+                const numRounds = displayRounds.length;
+                const matchHeight = 80; // altura fija de la tarjeta en px (coincide con CSS)
+                const r1Matches = data.matchups.length;
+                
+                // Gap vertical inicial para la primera columna de partidos
+                const r1Gap = 20;
+                
+                // Calcular altura total requerida por el bracket
+                const totalHeight = r1Matches * (matchHeight + r1Gap);
+                
+                let currentGap = r1Gap;
+                
+                for (let r = 0; r < numRounds; r++) {
+                    const roundName = displayRounds[r];
+                    const isChampionCol = (r === numRounds - 1);
+                    const numMatchesInRound = isChampionCol ? 1 : Math.max(1, r1Matches / Math.pow(2, r));
+                    
+                    const col = document.createElement('div');
+                    col.className = 'bracket-round';
+                    col.style.height = `${totalHeight}px`;
+                    
+                    // Asignar variables CSS de gap y altura de línea vertical para esta columna
+                    const verLineHeight = matchHeight + currentGap;
+                    col.style.setProperty('--ver-line-height', `${verLineHeight}px`);
+                    
+                    // Título de la ronda
+                    const roundHeader = document.createElement('div');
+                    roundHeader.className = 'bracket-round-header';
+                    roundHeader.innerHTML = `
+                        <span>${roundName === 'Campeón' ? '🏆 Campeón' : (roundName === 'F' ? 'Final' : roundName)}</span>
+                        <span class="round-matches-count">${isChampionCol ? '1 Ganador' : `${numMatchesInRound} Partidos`}</span>
+                    `;
+                    col.appendChild(roundHeader);
+                    
+                    // Contenedor de matchups de la columna
+                    const matchupsWrap = document.createElement('div');
+                    matchupsWrap.className = 'bracket-round-matchups';
+                    matchupsWrap.style.gap = `${currentGap}px`;
+                    
+                    if (isChampionCol) {
+                        // Columna del campeón
+                        const champCard = document.createElement('div');
+                        champCard.className = 'bracket-champ-card';
+                        champCard.innerHTML = `
+                            <div class="champ-label">CAMPEÓN</div>
+                            <div class="champ-name">—</div>
+                            <div class="champ-sub text-faint">Predice el torneo</div>
+                        `;
+                        matchupsWrap.appendChild(champCard);
+                    } else if (r === 0) {
+                        // Ronda 1: Llenar con datos reales
+                        data.matchups.forEach((m, idx) => {
+                            const isEven = (idx % 2 === 1);
+                            const card = document.createElement('div');
+                            card.className = `bracket-matchup ${isEven ? 'match-even' : 'match-odd'}`;
+                            card.innerHTML = `
+                                <div class="bracket-matchup-header">PARTIDO ${m.match_num}</div>
+                                <div class="bracket-player-slot">
+                                    <span class="bracket-player-name">${m.player_a.name}</span>
+                                    <span class="bracket-player-meta">#${m.player_a.rank} · ELO ${Math.round(m.player_a.elo)}</span>
+                                </div>
+                                <div class="bracket-player-slot">
+                                    <span class="bracket-player-name">${m.player_b.name}</span>
+                                    <span class="bracket-player-meta">#${m.player_b.rank} · ELO ${Math.round(m.player_b.elo)}</span>
+                                </div>
+                            `;
+                            matchupsWrap.appendChild(card);
+                        });
+                    } else {
+                        // Rondas posteriores: Placeholders
+                        const prevRoundName = displayRounds[r - 1];
+                        for (let i = 1; i <= numMatchesInRound; i++) {
+                            const isEven = (i % 2 === 0);
+                            const card = document.createElement('div');
+                            card.className = `bracket-matchup placeholder-matchup ${isEven ? 'match-even' : 'match-odd'}`;
+                            
+                            // Si es la final, no dibuja el conector derecho vertical/horizontal doble
+                            if (numMatchesInRound === 1) {
+                                card.classList.add('final-match');
+                            }
+                            
+                            card.innerHTML = `
+                                <div class="bracket-matchup-header">PARTIDO ${i} · ${roundName}</div>
+                                <div class="bracket-player-slot placeholder">
+                                    <span class="bracket-player-name">Ganador P${2 * i - 1} (${prevRoundName})</span>
+                                </div>
+                                <div class="bracket-player-slot placeholder">
+                                    <span class="bracket-player-name">Ganador P${2 * i} (${prevRoundName})</span>
+                                </div>
+                            `;
+                            matchupsWrap.appendChild(card);
+                        }
+                    }
+                    
+                    col.appendChild(matchupsWrap);
+                    drawBracketContainer.appendChild(col);
+                    
+                    // Actualizar el gap para la siguiente ronda según la fórmula: G_{k+1} = 2 * G_k + H
+                    if (!isChampionCol) {
+                        currentGap = 2 * currentGap + matchHeight;
+                    }
+                }
+            }
+
             tournamentInfoLoaded = true;
         } catch (err) {
             drawGrid.innerHTML = `<div class="form-error" style="padding: 20px;">${err.message}</div>`;
+            if (drawBracketContainer) {
+                drawBracketContainer.innerHTML = `<div class="form-error" style="padding: 20px;">${err.message}</div>`;
+            }
+        }
+    };
+
+    // Función para actualizar las llaves del bracket con los resultados de la simulación
+    const updateBracketWithSimulation = (simData) => {
+        if (!initialDrawOrder || initialDrawOrder.length === 0) return;
+
+        const probMap = {};
+        simData.results.forEach(r => {
+            probMap[r.name] = r.probabilities;
+        });
+
+        const drawSize = initialDrawOrder.length;
+        const roundsMap = {
+            128: ['R128', 'R64', 'R32', 'R16', 'QF', 'SF', 'F', 'Winner'],
+            64:  ['R64', 'R32', 'R16', 'QF', 'SF', 'F', 'Winner'],
+            32:  ['R32', 'R16', 'QF', 'SF', 'F', 'Winner'],
+            16:  ['R16', 'QF', 'SF', 'F', 'Winner'],
+            8:   ['QF', 'SF', 'F', 'Winner'],
+            4:   ['SF', 'F', 'Winner'],
+            2:   ['F', 'Winner']
+        };
+        const displayRounds = roundsMap[drawSize] || ['R32', 'R16', 'QF', 'SF', 'F', 'Winner'];
+        const numRounds = displayRounds.length;
+
+        const roundColumns = drawBracketContainer.querySelectorAll('.bracket-round');
+        if (roundColumns.length !== numRounds) return;
+
+        for (let k = 1; k < numRounds; k++) {
+            const roundName = displayRounds[k];
+            const isChampionCol = (k === numRounds - 1);
+            const col = roundColumns[k];
+
+            if (isChampionCol) {
+                const champCard = col.querySelector('.bracket-champ-card');
+                if (champCard) {
+                    let bestPlayer = null;
+                    let maxProb = -1;
+
+                    initialDrawOrder.forEach(p => {
+                        if (p && probMap[p.name]) {
+                            const prob = probMap[p.name]['Winner'] || 0;
+                            if (prob > maxProb) {
+                                maxProb = prob;
+                                bestPlayer = p;
+                            }
+                        }
+                    });
+
+                    const nameEl = champCard.querySelector('.champ-name');
+                    const subEl = champCard.querySelector('.champ-sub');
+                    if (nameEl && bestPlayer && maxProb > 0) {
+                        nameEl.textContent = bestPlayer.name;
+                        subEl.textContent = `${maxProb.toFixed(1)}% de probabilidad`;
+                        champCard.style.borderColor = '#f59e0b';
+                        champCard.style.background = 'radial-gradient(circle at center, rgba(245, 158, 11, 0.2) 0%, rgba(15, 27, 22, 0.55) 100%)';
+                    }
+                }
+            } else {
+                const matchups = col.querySelectorAll('.bracket-matchup');
+                const step = Math.pow(2, k);
+
+                matchups.forEach((card, m) => {
+                    // Ranura superior
+                    const startUp = 2 * m * step;
+                    const endUp = (2 * m + 1) * step - 1;
+                    let bestUp = null;
+                    let maxProbUp = -1;
+
+                    for (let idx = startUp; idx <= endUp; idx++) {
+                        const p = initialDrawOrder[idx];
+                        if (p && probMap[p.name]) {
+                            const prob = probMap[p.name][roundName] || 0;
+                            if (prob > maxProbUp) {
+                                maxProbUp = prob;
+                                bestUp = p;
+                            }
+                        }
+                    }
+
+                    // Ranura inferior
+                    const startDown = (2 * m + 1) * step;
+                    const endDown = (2 * m + 2) * step - 1;
+                    let bestDown = null;
+                    let maxProbDown = -1;
+
+                    for (let idx = startDown; idx <= endDown; idx++) {
+                        const p = initialDrawOrder[idx];
+                        if (p && probMap[p.name]) {
+                            const prob = probMap[p.name][roundName] || 0;
+                            if (prob > maxProbDown) {
+                                maxProbDown = prob;
+                                bestDown = p;
+                            }
+                        }
+                    }
+
+                    const slots = card.querySelectorAll('.bracket-player-slot');
+                    if (slots.length === 2) {
+                        if (bestUp && maxProbUp > 0) {
+                            slots[0].className = 'bracket-player-slot';
+                            slots[0].innerHTML = `
+                                <span class="bracket-player-name" title="${bestUp.name}">${bestUp.name}</span>
+                                <span class="bracket-player-meta prob-badge">${maxProbUp.toFixed(0)}%</span>
+                            `;
+                        } else {
+                            slots[0].className = 'bracket-player-slot placeholder';
+                            slots[0].innerHTML = `<span class="bracket-player-name">Bye / Sin clasificar</span>`;
+                        }
+
+                        if (bestDown && maxProbDown > 0) {
+                            slots[1].className = 'bracket-player-slot';
+                            slots[1].innerHTML = `
+                                <span class="bracket-player-name" title="${bestDown.name}">${bestDown.name}</span>
+                                <span class="bracket-player-meta prob-badge">${maxProbDown.toFixed(0)}%</span>
+                            `;
+                        } else {
+                            slots[1].className = 'bracket-player-slot placeholder';
+                            slots[1].innerHTML = `<span class="bracket-player-name">Bye / Sin clasificar</span>`;
+                        }
+
+                        card.classList.remove('placeholder-matchup');
+                    }
+                });
+            }
         }
     };
 
@@ -860,6 +1174,7 @@ function setupTournamentModal() {
             });
 
             resultsWrap.classList.remove('hidden');
+            updateBracketWithSimulation(data);
         } catch (err) {
             errorMsg.textContent = err.message;
             errorMsg.classList.remove('hidden');

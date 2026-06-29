@@ -251,6 +251,26 @@
                     </div>
                 </div>
 
+                <!-- Banner de Metadatos del Torneo -->
+                <div class="tournament-info-banner" id="tournament-info-banner">
+                    <div class="info-badge-item">
+                        <span class="info-badge-label">Categoría</span>
+                        <span class="info-badge-value" id="info-tourney-level">—</span>
+                    </div>
+                    <div class="info-badge-item">
+                        <span class="info-badge-label">Puntos ATP</span>
+                        <span class="info-badge-value" id="info-tourney-points">—</span>
+                    </div>
+                    <div class="info-badge-item">
+                        <span class="info-badge-label">Superficie</span>
+                        <span class="info-badge-value" id="info-tourney-surface">—</span>
+                    </div>
+                    <div class="info-badge-item">
+                        <span class="info-badge-label">Tamaño Cuadro</span>
+                        <span class="info-badge-value" id="info-tourney-size">—</span>
+                    </div>
+                </div>
+
                 <!-- Tabs para cambiar de vista -->
                 <div class="modal-tabs">
                     <button id="tab-draw-btn" class="modal-tab active">Cuadro Inicial</button>
@@ -259,14 +279,34 @@
 
                 <!-- View 1: Cuadro Inicial (Matchups) -->
                 <div id="view-draw" class="modal-view">
-                    <div class="draw-header-info">
-                        <h3 style="font-family: var(--display); font-size: 1.15rem; margin-bottom: 4px;">Enfrentamientos de primera ronda (<span id="draw-round-name">R128</span>)</h3>
-                        <p style="font-size: 0.85rem; color: var(--text-mut); margin-bottom: 12px;">Estructura del cuadro para el torneo seleccionado. Los ganadores avanzan de ronda.</p>
+                    <div class="draw-header-info" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 4px;">
+                        <div>
+                            <h3 style="font-family: var(--display); font-size: 1.15rem; margin-bottom: 4px;">Enfrentamientos de primera ronda (<span id="draw-round-name">R128</span>)</h3>
+                            <p style="font-size: 0.85rem; color: var(--text-mut); margin-bottom: 0;">Estructura del cuadro para el torneo seleccionado. Los ganadores avanzan de ronda.</p>
+                        </div>
+                        <div class="view-toggle-container">
+                            <button id="view-toggle-list" class="view-toggle-btn active" title="Vista Lista">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                                <span>Lista</span>
+                            </button>
+                            <button id="view-toggle-bracket" class="view-toggle-btn" title="Vista Brackets">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+                                <span>Brackets</span>
+                            </button>
+                        </div>
                     </div>
+                    
                     <div class="draw-matchups-grid" id="draw-matchups-grid">
                         <div class="tournament-loading-msg" id="draw-loading-msg">
                             <span class="loading-spinner"></span>
                             <p>Cargando información del torneo...</p>
+                        </div>
+                    </div>
+
+                    <!-- Contenedor del Bracket -->
+                    <div class="bracket-container-wrapper hidden" id="draw-bracket-wrapper">
+                        <div class="bracket-container" id="draw-bracket-container">
+                            <!-- Columnas del bracket cargadas dinámicamente -->
                         </div>
                     </div>
                 </div>
