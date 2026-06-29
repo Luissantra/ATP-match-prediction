@@ -1,4 +1,5 @@
 import os
+import math
 import pickle
 import time
 import sklearn
@@ -392,6 +393,13 @@ def simulate_tournament():
         for _, row in df_first_round.iterrows():
             initial_draw.append(row['winner_name'])
             initial_draw.append(row['loser_name'])
+
+        # Pad to next power of 2 so simular_torneo_montecarlo() doesn't crash
+        # on real-world draws where byes have already been played
+        n = len(initial_draw)
+        if n > 0 and (n & (n - 1)) != 0:
+            target = 2 ** math.ceil(math.log2(n))
+            initial_draw.extend([None] * (target - n))
 
         # Determinar superficie
         surface = df_first_round['surface'].iloc[0] if 'surface' in df_first_round.columns else 'Hard'
