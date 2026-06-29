@@ -82,3 +82,11 @@ LogReg calibrada: AUC=0.709, log-loss=0.6225, Brier=0.217, accuracy=65.0%. IC95%
 ## Datos
 
 `data/` contiene CSVs anuales. El pipeline de entrenamiento usa 2020–2024 (train), 2025 (test), 2026 (eval secundaria). `archive/` contiene scripts de fases anteriores (referencia, no se ejecutan).
+
+**Fuente de datos del circuito ATP:** TML-Database — https://stats.tennismylife.org / base de datos: https://stats.tennismylife.org/tennis-match-database. Inspirado en Jeff Sackmann (quien eliminó su GitHub). Licencia MIT, gratuito.
+
+- API de archivos: `https://stats.tennismylife.org/api/data-files` — lista 131 CSVs (1968–2026, Challenger, Qualifying)
+- Descarga directa: `https://stats.tennismylife.org/data/<archivo>.csv`
+- Archivos clave: `2026.csv` (partidos ATP Tour 2026, actualizado diariamente), `ongoing_tourneys.csv` (partidos del torneo en curso, ~35 columnas: tourney_id/name/surface/round/winner/loser/rank/seed/score), `challenger_ongoing_tourneys.csv`
+- Mismo esquema de columnas que Sackmann: `tourney_id`, `winner_id/name/rank/seed`, `loser_id/name/rank/seed`, `surface`, `round`, `score`, etc. Compatible con pipeline existente.
+- Uso: actualizar CSVs anuales, ampliar cobertura de jugadores, obtener draws de torneos en curso para simulación.
