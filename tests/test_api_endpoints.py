@@ -206,3 +206,56 @@ def test_api_tournaments_503_si_tml_falla(client):
         r = client.get('/api/tournaments')
     assert r.status_code == 503
 
+
+# ── Versiones mockeadas de info y simulate ───────────────────────────────────
+
+def _df_ao_mock():
+    """8 filas de R64 del Australian Open — potencia de 2 para el simulador."""
+    rows = []
+    players = [('Sinner', 'Alcaraz'), ('Djokovic', 'Ruud'), ('Medvedev', 'Rublev'),
+               ('Zverev', 'Fritz'), ('Paul', 'Tiafoe'), ('Hurkacz', 'Norrie'),
+               ('Khachanov', 'Mmoh'), ('Shapovalov', 'Musetti')]
+    for i, (w, l) in enumerate(players, 1):
+        rows.append({
+            'tourney_id': '2026-580', 'tourney_name': 'Australian Open',
+            'surface': 'Hard', 'tourney_level': 'G',
+            'match_num': i, 'round': 'R64',
+            'winner_name': w, 'loser_name': l,
+            'winner_rank': float(i), 'loser_rank': float(i + 8),
+            'winner_age': 24.0, 'loser_age': 25.0,
+        })
+    return pd.DataFrame(rows)
+
+
+def test_tournament_info_con_mock_devuelve_200(client):
+    with patch('app._get_ongoing_df', return_value=_df_ao_mock()):
+        r = client.get('/api/tournament/info?tournament=Australian Open')
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data['tournament'] == 'Australian Open'
+    assert len(data['matchups']) == 8
+    assert 'player_a' in data['matchups'][0]
+
+
+def test_tournament_info_con_mock_torneo_invalido(client):
+    with patch('app._get_ongoing_df', return_value=_df_ao_mock()):
+        r = client.get('/api/tournament/info?tournament=TorneoInexistente')
+    assert r.status_code == 404
+
+
+def test_simulate_tournament_con_mock_devuelve_200(client):
+    with patch('app._get_ongoing_df', return_value=_df_ao_mock()):
+        r = client.get('/api/tournament/simulate?tournament=Australian Open&simulations=10')
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data['tournament'] == 'Australian Open'
+    assert data['simulations'] == 10
+    assert len(data['results']) > 0
+    assert 'probabilities' in data['results'][0]
+
+
+def test_simulate_tournament_con_mock_torneo_invalido(client):
+    with patch('app._get_ongoing_df', return_value=_df_ao_mock()):
+        r = client.get('/api/tournament/simulate?tournament=TorneoInexistente&simulations=5')
+    assert r.status_code == 404
+

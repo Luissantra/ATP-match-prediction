@@ -281,13 +281,8 @@ def list_tournaments():
 def tournament_info():
     tourney = request.args.get('tournament', 'Australian Open')
 
-    import pandas as pd
-    ongoing_path = os.path.join("data", "ongoing_tourneys.csv")
-    if not os.path.exists(ongoing_path):
-        return jsonify({"detail": f"No se encontró el archivo de torneos en curso: {ongoing_path}"}), 404
-
     try:
-        df_ongoing = pd.read_csv(ongoing_path)
+        df_ongoing = _get_ongoing_df()
         df_tourney = df_ongoing[df_ongoing['tourney_name'].str.lower() == tourney.lower()].copy()
 
         if len(df_tourney) == 0:
@@ -370,15 +365,10 @@ def simulate_tournament():
     if n_sims <= 0 or n_sims > 10000:
         return jsonify({"detail": "El número de simulaciones debe estar entre 1 y 10000."}), 400
 
-    import pandas as pd
     from src.simulator import simular_torneo_montecarlo
 
-    ongoing_path = os.path.join("data", "ongoing_tourneys.csv")
-    if not os.path.exists(ongoing_path):
-        return jsonify({"detail": f"No se encontró el archivo de torneos en curso: {ongoing_path}"}), 404
-
     try:
-        df_ongoing = pd.read_csv(ongoing_path)
+        df_ongoing = _get_ongoing_df()
         # Filtrar por torneo
         df_tourney = df_ongoing[df_ongoing['tourney_name'].str.lower() == tourney.lower()].copy()
 
