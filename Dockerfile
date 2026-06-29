@@ -10,4 +10,4 @@ COPY . .
 ENV PORT=7860
 EXPOSE 7860
 
-CMD gunicorn -w 2 -b 0.0.0.0:$PORT app:app
+CMD ["sh", "-c", "gunicorn -w 2 -b 0.0.0.0:$PORT app:app"]

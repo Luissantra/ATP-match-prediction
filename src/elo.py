@@ -141,7 +141,7 @@ def actualizar_ratings(rating_A, rating_B, resultado_A, K=32):
 
     return nuevo_rating_A, nuevo_rating_B
 
-def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True):
+def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True, hasta_fecha=None):
     """
     Procesa un conjunto de datasets anuales de partidos de tenis cronológicamente,
     manteniendo y actualizando los ratings ELO dinámicos a lo largo del tiempo.
@@ -157,6 +157,9 @@ def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True)
         Ruta al directorio que contiene los archivos anuales (ej: '2024.csv').
     años : list of int
         Lista de años a procesar en orden cronológico (ej: [2020, 2021, 2022]).
+    hasta_fecha : int or str, opcional
+        Fecha de corte en formato YYYYMMDD. Si se proporciona, se ignoran los
+        partidos jugados en esa fecha o después.
 
     Returns
     -------
@@ -201,6 +204,11 @@ def calcular_elos_historicos(data_dir, años, use_mov=True, use_k_schedule=True)
     
     # 2. Ordenar cronológicamente para evitar fuga de información hacia el pasado (data leakage)
     df_completo = df_completo.sort_values(by=['tourney_date', 'match_num']).reset_index(drop=True)
+    
+    # Filtrar por fecha de corte si se especifica
+    if hasta_fecha is not None:
+        hasta_fecha_int = int(hasta_fecha)
+        df_completo = df_completo[df_completo['tourney_date'] < hasta_fecha_int].reset_index(drop=True)
     
     elo_ganador_previo = []
     elo_perdedor_previo = []
