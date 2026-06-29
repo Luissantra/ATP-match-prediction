@@ -307,7 +307,12 @@ function renderResults(res) {
     // Ganador
     document.getElementById('winner-name').textContent = res.predicted_winner;
     const conf = winA ? a.prob_victory : b.prob_victory;
-    document.getElementById('winner-conf').textContent = `Probabilidad estimada ${conf}% · modelo ${res.model_used || 'logreg'}`;
+    document.getElementById('winner-conf').innerHTML =
+        `<span class="winner-prob">${conf}%</span><span class="winner-prob-label">probabilidad estimada</span>`;
+
+    // Marcar carta ganadora en comparativa
+    document.querySelector('.cmp-a').classList.toggle('cmp-winner', winA);
+    document.querySelector('.cmp-b').classList.toggle('cmp-winner', !winA);
 
     // Eje + barras de factores
     document.getElementById('axis-name-a').textContent = a.name;

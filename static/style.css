@@ -407,6 +407,7 @@ body.surface-grass .court-bg {
     border-radius: 4px;
     overflow: hidden;
     display: flex;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.3);
 }
 .court-half { height: 100%; transition: width 0.9s var(--ease), background var(--t); }
 .half-a { width: 50%; }
@@ -459,24 +460,52 @@ body.surface-grass .court-bg {
 .court-pct.is-loser  { color: var(--text-mut); }
 
 /* ---- Ganador ---- */
-.winner { text-align: center; }
+.winner {
+    text-align: center;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 2px; padding: 8px 0 4px; position: relative;
+}
+.winner::before {
+    content: "";
+    display: block; width: 28px; height: 2px;
+    background: var(--accent); border-radius: 2px;
+    margin-bottom: 10px; transition: background var(--t);
+}
 .winner-label {
-    font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.22em;
+    font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.3em;
     text-transform: uppercase; color: var(--text-faint);
 }
 .winner-name {
     font-family: var(--display); font-weight: 800;
-    font-size: clamp(1.8rem, 5vw, 2.6rem);
-    letter-spacing: -0.02em;
-    margin: 6px 0 4px;
+    font-size: clamp(2rem, 6vw, 3.2rem);
+    letter-spacing: -0.03em; line-height: 1;
+    margin: 6px 0 10px;
     color: var(--accent); transition: color var(--t);
 }
-.winner-conf { font-family: var(--mono); font-size: 0.9rem; color: var(--accent); transition: color var(--t); }
+/* winner-conf contiene la probabilidad grande + label pequeño (vía JS innerHTML) */
+.winner-conf {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-family: var(--mono); color: var(--accent); transition: color var(--t);
+}
+.winner-prob {
+    font-family: var(--mono); font-size: 2.4rem; font-weight: 700;
+    letter-spacing: -0.04em; line-height: 1;
+    color: var(--text);
+}
+.winner-prob-label {
+    font-family: var(--mono); font-size: 0.61rem;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--text-faint);
+}
 
 /* ---- Diferencias por factor (barras divergentes) ---- */
 .block-head { margin-bottom: 14px; }
-.block-head h3 { font-family: var(--display); font-weight: 700; font-size: 1.2rem; }
-.block-sub { font-size: 0.84rem; color: var(--text-mut); margin-top: 3px; }
+.block-head h3 {
+    font-family: var(--display); font-weight: 700; font-size: 1.15rem;
+    padding-left: 11px; border-left: 2px solid var(--accent);
+    transition: border-color var(--t);
+}
+.block-sub { font-size: 0.84rem; color: var(--text-mut); margin-top: 5px; padding-left: 11px; }
 
 .factor-axis {
     display: grid;
@@ -588,6 +617,12 @@ body.surface-grass .court-bg {
     border-radius: 12px;
     padding: 18px;
     background: var(--court-deep);
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+.cmp-card.cmp-winner {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent),
+                inset 0 0 20px color-mix(in srgb, var(--accent) 6%, transparent);
 }
 .cmp-card h4 {
     font-family: var(--display); font-weight: 700; font-size: 1.05rem;
