@@ -11,8 +11,7 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 CORS(app)
 
 # Vigencia del modelo (R4): ventana de datos del artefacto servido. Refleja
-# main.py (TRAIN_END_YEAR=2025 → entrena 2020-2024; TEST_YEAR=2025). Servido por
-# /api/model para que el frontend no hardcodee la fecha de corte en el HTML.
+# main.py. Inicializado con fallbacks y actualizado dinámicamente al cargar stats_jugadores.pkl.
 TRAINED_THROUGH = 2024   # último año incluido en el entrenamiento
 TESTED_ON = 2025         # año del test ciego principal
 
@@ -53,7 +52,7 @@ def validar_metadata_pkl(metadata):
 
 def cargar_modelo():
     global modelo, metrics, coeficientes
-    global elo_general, elo_superficie, stats_jugadores
+    global elo_general, elo_superficie, stats_jugadores, TRAINED_THROUGH, TESTED_ON
     try:
         with open("models/stats_jugadores.pkl", "rb") as f:
             metadata = pickle.load(f)
@@ -65,6 +64,8 @@ def cargar_modelo():
         elo_superficie = metadata['elo_superficie']
         stats_jugadores = metadata['stats']
         coeficientes = metadata.get('coeficientes', {})
+        TRAINED_THROUGH = metadata.get('trained_through', 2024)
+        TESTED_ON = metadata.get('tested_on', 2025)
         aviso = verificar_version_sklearn(metadata.get('sklearn_version'))
         if aviso:
             print(aviso)

@@ -64,7 +64,7 @@ def test_api_model_contiene_metricas_y_coeficientes(client):
 def test_api_model_expone_vigencia(client):
     """R4: fecha de corte servida desde backend (no hardcodeada en el HTML)."""
     data = client.get('/api/model').get_json()
-    assert data['trained_through'] == 2024
+    assert data['trained_through'] == 2025
     assert data['tested_on'] == 2025
 
 
