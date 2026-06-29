@@ -1,10 +1,11 @@
 # ROADMAP — ATP Match Prediction
 
 > Backlog derivado de la revisión técnica 2026-06-24. **Backlog cerrado** (2026-06-26).
-> **Poda de minimalismo** (2026-06-26): ver sección abajo. 124 tests (pytest) + 4 (node).
+> **Poda de minimalismo** (2026-06-26 + re-poda 2026-06-29): ver sección abajo. 134 tests (pytest) + 4 (node).
 > **Épica deploy + visual (2026-06-27): RESUELTA.** Plan en `docs/superpowers/plans/2026-06-27-visual-polish-then-hf-deploy.md`.
 > **Desplegado en HuggingFace Spaces (2026-06-28):** https://luissantra-atp-prediction.hf.space — deploy vía `scripts/deploy-hf.sh` (migración LFS efímera de `.pkl`) + auto-sync GitHub→HF (`.github/workflows/sync-to-hf.yml`).
-> **Nueva épica abierta (2026-06-28): refinamiento post-deploy.** Ver abajo.
+> **Épica abierta (2026-06-28): refinamiento post-deploy.** Ver abajo.
+> **Residuos pendientes (2026-06-29):** ver sección "Residuos" al final.
 
 ## Próximo — Épica refinamiento post-deploy (2026-06-28)
 
@@ -12,9 +13,8 @@ App en producción. Pulir, ampliar funcionalidad y honestidad sobre los datos.
 
 ### R1 — Detalles técnicos
 - Quitar el warning `JSONArgsRecommended` del Dockerfile (CMD en shell-form por `$PORT`): evaluar `ENTRYPOINT`/exec-form con `sh -c` o script de arranque.
-- `notebooks/atp_resumen.ipynb` sigue en el modelo viejo (8 features): actualizar al de 5 o archivar.
-- Mantener `requirements-serve.txt` en sync con `requirements.txt` (hoy manual; ¿test que lo verifique?).
-- Revisar `metrics_atp.pkl` (4 KB) y demás artefactos: confirmar que todo lo servido es mínimo.
+- ✅ `requirements-serve.txt` en sync con `requirements.txt`: cubierto por `tests/test_dependencies.py::test_requirements_sync`.
+- (Notebook movido a "Residuos".)
 
 ### R2 — Detalles visuales
 - Estado de carga / errores del Space en frío (HF duerme el Space inactivo: primer request lento). Mensaje de "despertando modelo".
@@ -80,11 +80,11 @@ Orden de ejecución: `V2 → V1 → V3 → D1 → D2`.
 - **D1** — `Dockerfile` + port configurable (`PORT` env var, default 8000 local / 7860 HF).
 - **D2** — `README.md` con header YAML de HF Spaces (`sdk: docker`).
 
-## Estado final (post-poda)
+## Estado final (post re-poda 2026-06-29, 5 features)
 
 Métricas finales (test ciego 2025, n=2861):
 
-- LogReg calibrada: AUC=0.709, log-loss=0.6225, Brier=0.217, accuracy=65.0%
+- LogReg calibrada: AUC=0.7093, log-loss=0.6225, Brier=0.217, accuracy=65.2%
 - IC95% AUC ≈ ±0.009
 - Gap CV→test Δ=+0.007 (prácticamente nulo)
 - Supera baseline ELO-híbrido (AUC 0.709 vs 0.694, log-loss 0.6225 vs 0.6318, fuera del IC)
@@ -98,6 +98,14 @@ Estudio de permutation importance + ablación sobre test 2025 (n=2861):
 - **Modelos 4 → 1.** LogReg calibrada como modelo único. GBM/RF/XGBoost/ensemble no superaban a la LogReg (señal lineal). Retirados `SoftVotingEnsemble`, `comparar_calibracion`, `/api/predict_all`, `/api/models`, `?model=`, panel comparador, dependencia `xgboost`.
 - **Explicabilidad.** `coeficientes_modelo()` (odds-ratio por +1 std), `graficar_coeficientes()`, endpoint `/api/model`, panel "Detalle del modelo".
 - **Fixes de calidad.** `is_unranked` desde máscara NaN real (no centinela 999); baseline ELO **híbrido** (honesto, mismo acceso a superficie que el modelo); calibración sigmoid (Platt) por defecto; `visualize.py` arreglado (unpack 5→3) y EDA = correlación de features reales (antes pairplot de altura, no usada); `tourney_level`/H2H/forma retirados de ELO/inferencia/frontend.
+
+## Re-poda + fix skew (2026-06-29)
+
+Entre la poda de junio y esta fecha se habían añadido `diff_matches_played` y `diff_tb_ratio` (7 features). Validación con bootstrap **pareado** sobre test 2025 (n=2861):
+
+- **Features 7 → 5.** `diff_matches_played` era ruido puro (perm. imp. ~0, IC de ΔAUC cruzaba 0). `diff_tb_ratio` era estadísticamente significativa (IC de ΔAUC y Δlog-loss enteramente >0) pero el aporte absoluto era trivial (+0.002 AUC) → podada por **relevancia práctica**, no solo significancia. Modelo 5-feat idéntico al 7-feat (AUC=0.7093, log-loss=0.6225) → no costó señal.
+- **Limpieza total.** Eliminada la maquinaria muerta de tie-breaks/experiencia en `src/elo.py` (`_extraer_tiebreaks`, contadores `tb_*`, columnas y export `stats_acumuladas`); `calcular_elos_historicos` vuelve a return de 3 valores. Propagado a `data_processing`, `simulator`, `backtest`, `evaluate`, `app`, `main`. −135 líneas netas.
+- **Fix train/serve skew de `is_unranked`.** La inferencia recalculaba `rank>=999`, marcando como "sin ranking" a ~83/880 jugadores con rank real alto (p.ej. Pospisil 1250, Haase 1199). Ahora se sirve el flag de la máscara NaN exportado en `stats_jugadores` (con fallback a `rank>=999` para pkl antiguos). +2 tests.
 
 ## Resuelto
 
@@ -143,3 +151,12 @@ Estudio de permutation importance + ablación sobre test 2025 (n=2861):
 - **G3** — Tests endpoint `/api/predict` vía test_client.
 - **N1** — `notebooks/atp_resumen.ipynb` didáctico.
 - **N2** — Rediseño UI "court-side telemetry" (identidad por superficie, barras divergentes).
+
+## Residuos pendientes (2026-06-29)
+
+Deuda menor, no bloquea la calidad actual del proyecto. Por orden de prioridad:
+
+- **D-RES1 · Deuda sklearn 1.10.** `src/train.py` (`param_grid`) usa `penalty=['l1','l2']`, deprecado en sklearn 1.9 → **romperá el entrenamiento en sklearn 1.10**. Migrar a `l1_ratio` (`l1_ratio=0`≡L2, `=1`≡L1) + `C`. Genera los `FutureWarning`/`UserWarning` actuales. Requiere reentrenar el pkl tras el cambio.
+- **D-RES2 · Tests de torneo rotos (pre-existentes).** `test_simulate_tournament_devuelve_200` y `test_tournament_info_devuelve_200` fallan con 404 (necesitan datos reales que el mock no provee; no relacionados con features). Arreglar el fixture o marcar `xfail` para no pudrir la suite. 134/136 verdes hoy.
+- **D-RES3 · Notebook `atp_resumen.ipynb`.** Sigue en el modelo viejo (8 features) y métricas que no coinciden con producción. Actualizar al modelo de 5 (con celda de IC/baseline/reliability como pedía Q5) **o** archivar para no mantenerlo.
+- **D-RES4 · Dockerfile `JSONArgsRecommended`.** (Heredado de R1.) CMD en shell-form por `$PORT`; evaluar exec-form con script de arranque.
