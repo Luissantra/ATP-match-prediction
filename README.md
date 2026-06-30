@@ -43,6 +43,9 @@ Se podaron `diff_h2h`, `diff_form` y `tourney_level_num`: permutation importance
 ### 5. CV temporal con embargo
 `purged_time_series_splits` descarta filas a <7 días de la frontera train/val: rompe la fuga blanda por estado ELO compartido entre partidos contiguos.
 
+### 6. Simulador de torneos Monte Carlo
+A partir del cuadro real de un torneo ATP en curso (descargado de TML-Database), `src/simulator.py` propaga las probabilidades ronda a ronda con Monte Carlo (cuadros potencia de 2, padding con *byes*): N simulaciones del bracket completo usando la misma lógica de inferencia que `/api/predict`, sin train/serve skew. Devuelve, por jugador, la probabilidad de alcanzar cada ronda y de coronarse campeón. El frontend lo muestra como tabla de favoritos y como **bracket visual "camino al título"**: cada slot lleva un riel cuyo ancho refleja su probabilidad de supervivencia, con el favorito de cada cruce marcado y el campeón como marcador en oro.
+
 ---
 
 ## Resultados (test ciego 2025, n=2861)
@@ -70,22 +73,22 @@ src/
 ├── data_processing.py  # Simetrización vectorizada, balance 50/50
 ├── cv.py               # purged_time_series_splits — embargo temporal 7 días
 ├── train.py            # LogReg: entrenar_modelo, calibrar_modelo, coeficientes_modelo
-└── evaluate.py         # evaluar(), bootstrap_ic95(), evaluar_baseline_elo(), plots
+├── evaluate.py         # evaluar(), bootstrap_ic95(), evaluar_baseline_elo(), plots
+├── draw.py             # Descarga de cuadros ATP en curso (TML), priorización por nivel
+└── simulator.py        # Simulación Monte Carlo del bracket (probabilidad por ronda)
 
 templates/index.html    # SPA "court-side telemetry": identidad por superficie
 static/
 ├── format.js           # Funciones puras de presentación (testeadas con node --test)
-└── script.js           # Estado, fetch y render; llama /api/predict, /api/model
+└── script.js           # Estado, fetch y render; predicción + simulador de torneos
 
-tests/                  # 136 tests (pytest) + 4 (node)
-notebooks/
-└── atp_resumen.ipynb   # Didáctico (legacy — pendiente de actualizar al modelo de 5 features)
+tests/                  # 148 tests (pytest) + 4 (node)
 docs/
 └── ROADMAP.md          # Backlog priorizado + decisiones de poda
-archive/                # Scripts de fases anteriores (referencia)
+archive/                # Scripts/notebook de fases anteriores (referencia, no se ejecutan)
 data/                   # CSVs anuales 2020–2026
 
-app.py                  # Flask: /api/players, /api/predict, /api/model
+app.py                  # Flask: /api/players, /api/predict, /api/model, /api/tournament/*
 main.py                 # Pipeline: ELO → dataset → entrenar LogReg → evaluar → exportar
 visualize.py            # EDA (evolución ELO Top 5 + correlación de features)
 requirements.txt        # Dependencias pineadas
@@ -146,6 +149,9 @@ Para HuggingFace Spaces: crear un Space de tipo *Docker* y empujar el repo (los 
 GET /api/players                                          → lista jugadores ordenados por ELO
 GET /api/predict?player_a=X&player_b=Y&surface=Z          → predicción (LogReg calibrada)
 GET /api/model                                            → métricas test 2025 + coeficientes
+GET /api/tournaments                                      → torneos ATP en curso (TML, cache en memoria)
+GET /api/tournament/info?tournament=X                     → cuadro inicial + metadatos del torneo
+GET /api/tournament/simulate?tournament=X&simulations=N   → probabilidad por ronda (Monte Carlo)
 ```
 
 Parámetros: `surface` ∈ {Hard, Clay, Grass}.

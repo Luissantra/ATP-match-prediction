@@ -11,6 +11,7 @@
     --text-mut: rgba(244, 244, 236, 0.62);
     --text-faint: rgba(244, 244, 236, 0.40);
     --warn: #E8B14C;
+    --gold: #E8B14C;                 /* campeón del torneo (armoniza en las 3 superficies) */
 
     /* Superficie por defecto: DURA */
     --court-deep: #06243B;
@@ -1280,64 +1281,83 @@ body.surface-grass .court-bg {
     flex-shrink: 0;
 }
 
-/* 3. Contenedor del Bracket */
+/* 3. Contenedor del Bracket
+   "Camino al título": el cuadro es un campo de probabilidad. Cada slot lleva un
+   riel cuyo ancho = probabilidad de supervivencia Monte Carlo. La ronda 1 es el
+   draw factual (sin riel); de SF en adelante el campo se enciende tras simular. */
 .bracket-container-wrapper {
     max-height: 52vh;
     overflow: auto;
-    border-radius: 8px;
+    border-radius: 12px;
     border: 1px solid var(--line-faint);
-    background: rgba(10, 20, 15, 0.45);
-    padding: 20px;
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent 220px),
+        rgba(8, 16, 12, 0.5);
+    padding: 22px 24px 26px;
     position: relative;
 }
 
 .bracket-container {
     display: flex;
-    gap: 48px;
+    gap: 52px;
     align-items: center;
     position: relative;
     user-select: none;
+    width: max-content;
 }
 
 /* Columnas de Rondas */
 .bracket-round {
     display: flex;
     flex-direction: column;
-    width: 240px;
+    width: 236px;
     flex-shrink: 0;
     position: relative;
 }
 
 .bracket-round-header {
-    height: 44px;
+    height: 46px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: center;
-    text-align: center;
-    border-bottom: 2px solid var(--line-dim);
-    margin-bottom: 16px;
+    align-items: flex-start;
+    margin-bottom: 18px;
     position: sticky;
-    top: 0;
-    background: #0d1612; /* Fondo del modal */
+    top: -22px;
+    background: var(--court-deep); /* se tiñe por superficie */
     z-index: 5;
-    padding-bottom: 6px;
+    padding: 6px 0 8px;
 }
 
-.bracket-round-header span:first-child {
+.bracket-round-header .rh-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.bracket-round-header .rh-name {
     font-family: var(--display);
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     font-weight: 700;
-    letter-spacing: 0.05em;
-    color: var(--accent);
+    letter-spacing: 0.04em;
+    color: var(--text);
     text-transform: uppercase;
+}
+
+.bracket-round-header .rh-rule {
+    flex: 1;
+    height: 1px;
+    min-width: 24px;
+    background: linear-gradient(90deg, var(--accent), transparent);
 }
 
 .bracket-round-header .round-matches-count {
     font-family: var(--mono);
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     color: var(--text-faint);
-    margin-top: 2px;
+    letter-spacing: 0.02em;
+    margin-top: 3px;
 }
 
 .bracket-round-matchups {
@@ -1353,37 +1373,59 @@ body.surface-grass .court-bg {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    width: 240px;
+    gap: 3px;
+    width: 236px;
     height: 80px; /* Altura fija importante para los cálculos de gap */
     background: var(--court-panel);
     border: 1px solid var(--line-faint);
-    border-radius: 6px;
-    padding: 6px 12px;
+    border-radius: 8px;
+    padding: 7px 12px 8px;
     position: relative;
     box-sizing: border-box;
-    transition: border-color 0.2s, background-color 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s;
     z-index: 2;
 }
 
 .bracket-matchup:hover {
     border-color: var(--line-dim);
-    background-color: color-mix(in srgb, var(--court-panel) 92%, var(--accent) 8%);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
 }
 
 .bracket-matchup-header {
     font-family: var(--mono);
-    font-size: 0.6rem;
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
     color: var(--text-faint);
-    border-bottom: 1px solid var(--line-faint);
-    padding-bottom: 2px;
-    margin-bottom: 4px;
-}
-
-.bracket-player-slot {
+    text-transform: uppercase;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: 22px;
+    margin-bottom: 1px;
+}
+
+/* Slot con riel de probabilidad (--p: 0-100) */
+.bracket-player-slot {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 23px;
+    padding: 0 7px;
+    border-radius: 5px;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.bracket-player-slot::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    width: calc(var(--p, 0) * 1%);
+    background: linear-gradient(90deg,
+        color-mix(in srgb, var(--accent) 30%, transparent),
+        color-mix(in srgb, var(--accent) 6%, transparent));
+    transition: width 0.5s var(--ease);
 }
 
 .bracket-player-name {
@@ -1393,60 +1435,114 @@ body.surface-grass .court-bg {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 140px;
+    max-width: 150px;
 }
 
 .bracket-player-meta {
     font-family: var(--mono);
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     color: var(--text-mut);
+    flex-shrink: 0;
+}
+
+.bracket-player-meta.prob-badge {
+    font-weight: 700;
+    font-size: 0.72rem;
+    color: var(--accent);
+}
+
+/* Favorito del cruce: tick accent + nombre más brillante */
+.bracket-player-slot.is-fav {
+    box-shadow: inset 2px 0 0 var(--accent);
+}
+.bracket-player-slot.is-fav .bracket-player-name {
+    color: #fff;
+    font-weight: 600;
 }
 
 /* Matchups de rondas siguientes (Placeholders) */
 .bracket-matchup.placeholder-matchup {
-    opacity: 0.65;
-    background: rgba(15, 27, 22, 0.2);
+    background: rgba(15, 27, 22, 0.18);
+    border-style: dashed;
 }
 
 .bracket-player-slot.placeholder .bracket-player-name {
     color: var(--text-faint);
     font-style: italic;
+    font-weight: 400;
+}
+.bracket-player-slot.placeholder::before {
+    display: none;
 }
 
-/* Tarjeta del Campeón */
+/* Tarjeta del Campeón: marcador en oro */
 .bracket-champ-card {
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    width: 240px;
-    height: 90px;
-    background: radial-gradient(circle at center, rgba(245, 158, 11, 0.15) 0%, rgba(15, 27, 22, 0.4) 100%);
-    border: 2px dashed #f59e0b;
-    border-radius: 8px;
+    width: 236px;
+    height: 104px;
+    background: radial-gradient(120% 120% at 50% 0%,
+        color-mix(in srgb, var(--gold) 22%, transparent) 0%, rgba(15, 27, 22, 0.5) 70%);
+    border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent);
+    border-radius: 10px;
     text-align: center;
     position: relative;
     z-index: 2;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2), 0 10px 30px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+.bracket-champ-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 34px color-mix(in srgb, var(--gold) 18%, transparent);
+}
+
+.bracket-champ-card .champ-trophy {
+    width: 20px;
+    height: 20px;
+    color: var(--gold);
+    margin-bottom: 2px;
 }
 
 .bracket-champ-card .champ-label {
-    font-family: var(--display);
-    font-size: 0.68rem;
-    font-weight: 800;
-    color: #f59e0b;
-    letter-spacing: 0.1em;
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
 }
 
 .bracket-champ-card .champ-name {
     font-family: var(--display);
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 1.18rem;
     color: #fff;
-    margin: 4px 0;
+    margin: 3px 0 2px;
+    line-height: 1.05;
 }
 
 .bracket-champ-card .champ-sub {
-    font-size: 0.68rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--gold);
+}
+
+/* Estado a la espera de simulación */
+.bracket-champ-card.awaiting {
+    background: rgba(15, 27, 22, 0.3);
+    border-style: dashed;
+    border-color: color-mix(in srgb, var(--gold) 35%, transparent);
+    box-shadow: none;
+}
+.bracket-champ-card.awaiting .champ-name {
+    color: var(--text-faint);
+    font-size: 0.95rem;
+}
+.bracket-champ-card.awaiting .champ-sub {
+    color: var(--text-faint);
 }
 
 /* 5. Conectores Gráficos (Líneas CSS) */
@@ -1455,21 +1551,22 @@ body.surface-grass .court-bg {
 .bracket-matchup:not(.final-match)::after {
     content: '';
     position: absolute;
-    right: -24px; /* mitad de gap horizontal (48px) */
+    right: -26px; /* mitad de gap horizontal (52px) */
     top: 50%;
-    width: 24px;
+    width: 26px;
     height: 2px;
     background: var(--line-dim);
     z-index: 1;
+    transition: background-color 0.25s var(--ease), border-color 0.25s var(--ease);
 }
 
 /* Conector a la izquierda de matchups (excepto primera ronda) */
 .bracket-round:not(:first-child) .bracket-matchup::before {
     content: '';
     position: absolute;
-    left: -24px;
+    left: -26px;
     top: 50%;
-    width: 24px;
+    width: 26px;
     height: 2px;
     background: var(--line-dim);
     z-index: 1;
@@ -1483,6 +1580,16 @@ body.surface-grass .court-bg {
     background: none;
     border-bottom: 2px solid var(--line-dim);
     border-right: 2px solid var(--line-dim);
+    border-bottom-right-radius: 6px;
+}
+
+/* Hover: iluminar conectores en el color de superficie */
+.bracket-matchup:hover::after {
+    background-color: var(--accent);
+}
+.bracket-matchup.match-even:hover::after {
+    background: none;
+    border-color: var(--accent);
 }
 
 /* Personalizar scrollbars del bracket */
@@ -1511,44 +1618,3 @@ body.surface-grass .court-bg {
     }
 }
 
-/* --- PULIDO ESTÉTICO DEL BRACKET --- */
-
-/* Badge de Probabilidad Monospace */
-.bracket-player-slot .prob-badge {
-    font-family: var(--mono);
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--accent);
-    background: rgba(34, 197, 94, 0.12);
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-left: 8px;
-    border: 1px solid rgba(34, 197, 94, 0.2);
-    transition: all 0.2s var(--ease);
-}
-
-/* Suavizar transiciones en los conectores */
-.bracket-matchup::after, 
-.bracket-matchup::before {
-    transition: background-color 0.25s var(--ease), border-color 0.25s var(--ease);
-}
-
-/* Efecto hover: Iluminar conectores correspondientes en verde */
-.bracket-matchup:hover::after {
-    background-color: var(--accent) !important;
-}
-
-/* Para partidos pares: iluminar la L invertida (conector horizontal y vertical de subida) */
-.bracket-matchup.match-even:hover::after {
-    background: none !important;
-    border-color: var(--accent) !important;
-}
-
-/* Destacar tarjeta del campeón si ya está decidida */
-.bracket-champ-card {
-    transition: transform 0.2s var(--ease), border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
-}
-.bracket-champ-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(245, 158, 11, 0.15);
-}

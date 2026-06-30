@@ -687,6 +687,7 @@ function setupTournamentModal() {
     let tournamentInfoLoaded = false;
     let currentViewMode = 'list'; // 'list' o 'bracket'
     let initialDrawOrder = []; // Jugadores en orden del cuadro para mapear las ramas del bracket
+    let currentDisplayRounds = []; // Rondas renderizadas en el bracket (misma fuente que columnas DOM)
 
     // Función para alternar vista del cuadro (Lista / Bracket)
     const updateViewMode = (mode) => {
@@ -819,6 +820,7 @@ function setupTournamentModal() {
                 const roundsAll = ['R128', 'R64', 'R32', 'R16', 'QF', 'SF', 'F', 'Campeón'];
                 const startIdx = roundsAll.indexOf(data.round);
                 const displayRounds = startIdx !== -1 ? roundsAll.slice(startIdx) : ['R32', 'R16', 'QF', 'SF', 'F', 'Campeón'];
+                currentDisplayRounds = displayRounds; // sincroniza con updateBracketWithSimulation
                 
                 const numRounds = displayRounds.length;
                 const matchHeight = 80; // altura fija de la tarjeta en px (coincide con CSS)
@@ -848,9 +850,13 @@ function setupTournamentModal() {
                     // Título de la ronda
                     const roundHeader = document.createElement('div');
                     roundHeader.className = 'bracket-round-header';
+                    const roundLabel = roundName === 'Campeón' ? 'Campeón' : (roundName === 'F' ? 'Final' : roundName);
                     roundHeader.innerHTML = `
-                        <span>${roundName === 'Campeón' ? '🏆 Campeón' : (roundName === 'F' ? 'Final' : roundName)}</span>
-                        <span class="round-matches-count">${isChampionCol ? '1 Ganador' : `${numMatchesInRound} Partidos`}</span>
+                        <div class="rh-top">
+                            <span class="rh-name">${roundLabel}</span>
+                            <span class="rh-rule"></span>
+                        </div>
+                        <span class="round-matches-count">${isChampionCol ? '1 Ganador' : `${numMatchesInRound} ${numMatchesInRound === 1 ? 'Partido' : 'Partidos'}`}</span>
                     `;
                     col.appendChild(roundHeader);
                     
@@ -862,11 +868,19 @@ function setupTournamentModal() {
                     if (isChampionCol) {
                         // Columna del campeón
                         const champCard = document.createElement('div');
-                        champCard.className = 'bracket-champ-card';
+                        champCard.className = 'bracket-champ-card awaiting';
                         champCard.innerHTML = `
-                            <div class="champ-label">CAMPEÓN</div>
+                            <svg class="champ-trophy" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path d="M7 3h10v7a5 5 0 0 1-10 0z" fill="currentColor" opacity="0.9"/>
+                                <path d="M7 9H5a2.5 2.5 0 0 1 0-5h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                                <path d="M17 9h2a2.5 2.5 0 0 0 0-5h-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                                <rect x="10.5" y="15" width="3" height="2.5" rx="0.5" fill="currentColor" opacity="0.85"/>
+                                <rect x="7" y="17.5" width="10" height="2" rx="1" fill="currentColor" opacity="0.8"/>
+                                <rect x="4" y="21" width="16" height="1.5" rx="0.75" fill="currentColor"/>
+                            </svg>
+                            <div class="champ-label">Campeón</div>
                             <div class="champ-name">—</div>
-                            <div class="champ-sub text-faint">Predice el torneo</div>
+                            <div class="champ-sub">Simula para predecir</div>
                         `;
                         matchupsWrap.appendChild(champCard);
                     } else if (r === 0) {
@@ -942,17 +956,10 @@ function setupTournamentModal() {
             probMap[r.name] = r.probabilities;
         });
 
-        const drawSize = initialDrawOrder.length;
-        const roundsMap = {
-            128: ['R128', 'R64', 'R32', 'R16', 'QF', 'SF', 'F', 'Winner'],
-            64:  ['R64', 'R32', 'R16', 'QF', 'SF', 'F', 'Winner'],
-            32:  ['R32', 'R16', 'QF', 'SF', 'F', 'Winner'],
-            16:  ['R16', 'QF', 'SF', 'F', 'Winner'],
-            8:   ['QF', 'SF', 'F', 'Winner'],
-            4:   ['SF', 'F', 'Winner'],
-            2:   ['F', 'Winner']
-        };
-        const displayRounds = roundsMap[drawSize] || ['R32', 'R16', 'QF', 'SF', 'F', 'Winner'];
+        // Usar las mismas rondas que se renderizaron en el DOM.
+        // 'Campeón' es el label display; la simulación devuelve 'Winner' como clave.
+        if (!currentDisplayRounds.length) return;
+        const displayRounds = currentDisplayRounds;
         const numRounds = displayRounds.length;
 
         const roundColumns = drawBracketContainer.querySelectorAll('.bracket-round');
@@ -963,6 +970,8 @@ function setupTournamentModal() {
             const isChampionCol = (k === numRounds - 1);
             const col = roundColumns[k];
 
+            const simKey = (roundName) => roundName === 'Campeón' ? 'Winner' : roundName;
+
             if (isChampionCol) {
                 const champCard = col.querySelector('.bracket-champ-card');
                 if (champCard) {
@@ -971,7 +980,7 @@ function setupTournamentModal() {
 
                     initialDrawOrder.forEach(p => {
                         if (p && probMap[p.name]) {
-                            const prob = probMap[p.name]['Winner'] || 0;
+                            const prob = probMap[p.name][simKey(roundName)] || 0;
                             if (prob > maxProb) {
                                 maxProb = prob;
                                 bestPlayer = p;
@@ -984,8 +993,7 @@ function setupTournamentModal() {
                     if (nameEl && bestPlayer && maxProb > 0) {
                         nameEl.textContent = bestPlayer.name;
                         subEl.textContent = `${maxProb.toFixed(1)}% de probabilidad`;
-                        champCard.style.borderColor = '#f59e0b';
-                        champCard.style.background = 'radial-gradient(circle at center, rgba(245, 158, 11, 0.2) 0%, rgba(15, 27, 22, 0.55) 100%)';
+                        champCard.classList.remove('awaiting');
                     }
                 }
             } else {
@@ -1002,7 +1010,7 @@ function setupTournamentModal() {
                     for (let idx = startUp; idx <= endUp; idx++) {
                         const p = initialDrawOrder[idx];
                         if (p && probMap[p.name]) {
-                            const prob = probMap[p.name][roundName] || 0;
+                            const prob = probMap[p.name][simKey(roundName)] || 0;
                             if (prob > maxProbUp) {
                                 maxProbUp = prob;
                                 bestUp = p;
@@ -1019,7 +1027,7 @@ function setupTournamentModal() {
                     for (let idx = startDown; idx <= endDown; idx++) {
                         const p = initialDrawOrder[idx];
                         if (p && probMap[p.name]) {
-                            const prob = probMap[p.name][roundName] || 0;
+                            const prob = probMap[p.name][simKey(roundName)] || 0;
                             if (prob > maxProbDown) {
                                 maxProbDown = prob;
                                 bestDown = p;
@@ -1029,25 +1037,33 @@ function setupTournamentModal() {
 
                     const slots = card.querySelectorAll('.bracket-player-slot');
                     if (slots.length === 2) {
+                        // El favorito del cruce (mayor prob) recibe el tick accent.
+                        const upFav = (bestUp && maxProbUp > 0) && maxProbUp >= maxProbDown;
+                        const downFav = (bestDown && maxProbDown > 0) && maxProbDown > maxProbUp;
+
                         if (bestUp && maxProbUp > 0) {
-                            slots[0].className = 'bracket-player-slot';
+                            slots[0].className = 'bracket-player-slot' + (upFav ? ' is-fav' : '');
+                            slots[0].style.setProperty('--p', maxProbUp.toFixed(1));
                             slots[0].innerHTML = `
                                 <span class="bracket-player-name" title="${bestUp.name}">${bestUp.name}</span>
                                 <span class="bracket-player-meta prob-badge">${maxProbUp.toFixed(0)}%</span>
                             `;
                         } else {
                             slots[0].className = 'bracket-player-slot placeholder';
+                            slots[0].style.removeProperty('--p');
                             slots[0].innerHTML = `<span class="bracket-player-name">Bye / Sin clasificar</span>`;
                         }
 
                         if (bestDown && maxProbDown > 0) {
-                            slots[1].className = 'bracket-player-slot';
+                            slots[1].className = 'bracket-player-slot' + (downFav ? ' is-fav' : '');
+                            slots[1].style.setProperty('--p', maxProbDown.toFixed(1));
                             slots[1].innerHTML = `
                                 <span class="bracket-player-name" title="${bestDown.name}">${bestDown.name}</span>
                                 <span class="bracket-player-meta prob-badge">${maxProbDown.toFixed(0)}%</span>
                             `;
                         } else {
                             slots[1].className = 'bracket-player-slot placeholder';
+                            slots[1].style.removeProperty('--p');
                             slots[1].innerHTML = `<span class="bracket-player-name">Bye / Sin clasificar</span>`;
                         }
 

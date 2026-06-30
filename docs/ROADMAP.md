@@ -1,168 +1,112 @@
 # ROADMAP — ATP Match Prediction
 
 > Backlog derivado de la revisión técnica 2026-06-24. **Backlog cerrado** (2026-06-26).
-> **Poda de minimalismo** (2026-06-26 + re-poda 2026-06-29): ver sección abajo. 136 tests (pytest) + 4 (node).
+> **Poda de minimalismo** (2026-06-26 + re-poda 2026-06-29): ver sección abajo. 148 tests (pytest) + 4 (node).
 > **Épica deploy + visual (2026-06-27): RESUELTA.** Plan archivado en `archive/docs/superpowers/plans/`.
 > **Desplegado en HuggingFace Spaces (2026-06-28):** https://luissantra-atp-prediction.hf.space — deploy vía `scripts/deploy-hf.sh` (migración LFS efímera de `.pkl`) + auto-sync GitHub→HF (`.github/workflows/sync-to-hf.yml`).
-> **Épica abierta (2026-06-28): refinamiento post-deploy.** Ver abajo.
-> **Visual polish (2026-06-29):** trophy SVG, winner scoreboard, block-head accent borders, cmp-winner highlight. Assets v15. Ver R2.
+> **Visual polish (2026-06-29):** trophy SVG, winner scoreboard, block-head accent borders, cmp-winner highlight.
+> **Épica simulador de torneos (2026-06-30): RESUELTA.** `src/draw.py` + `src/simulator.py` (Monte Carlo) + endpoints `/api/tournaments|info|simulate` + bracket view en UI. Ver R3.
+> **Bracket "camino al título" (2026-06-30):** rediseño del bracket como campo de probabilidad (rieles por slot, favorito marcado, campeón en oro con token `--gold`). Assets v17. Ver R2.
 
-## Próximo — Épica refinamiento post-deploy (2026-06-28)
+## Próximo — Épica refinamiento post-deploy
 
-App en producción. Pulir, ampliar funcionalidad y honestidad sobre los datos.
+App en producción con simulador de torneos funcionando. Pulir UX, honestidad y funcionalidad.
 
-### R1 — Detalles técnicos
-- Quitar el warning `JSONArgsRecommended` del Dockerfile (CMD en shell-form por `$PORT`): evaluar `ENTRYPOINT`/exec-form con `sh -c` o script de arranque.
-- ✅ `requirements-serve.txt` en sync con `requirements.txt`: cubierto por `tests/test_dependencies.py::test_requirements_sync`.
-- (Notebook movido a "Residuos".)
-
-### R2 — Detalles visuales
-- Estado de carga / errores del Space en frío (HF duerme el Space inactivo: primer request lento). Mensaje de "despertando modelo".
+### R2 — Detalles visuales (pendiente parcial)
+- Estado de carga cuando HF despierta el Space (primer request lento). Mensaje de "despertando modelo".
 - Afinar intensidad de texturas si en producción se ven flojas (clay/grass sutiles).
-- Pulir responsive en tablets (760–1024px), no solo móvil.
-- Posible: enlace/footer a HF + GitHub, favicon, og:image para compartir.
-- **Reconsiderar el orden superficie → predicción**: el usuario elige superficie antes de ver los resultados, pero la app ya muestra ELO en las tres superficies independientemente. Evaluar si tiene más sentido mostrar primero la predicción general y que la superficie sea un filtro secundario, o mantener el flujo actual y justificar que la superficie sí afecta al modelo (las features `diff_elo_sup` e `is_unranked` dependen de ella).
-- ✅ **Trophy SVG** — icono filled (copa sólida + orejas stroke + base escalonada) en nav y modal (2026-06-29).
-- ✅ **Winner section como marcador** — probabilidad en mono 2.4rem + "PROBABILIDAD ESTIMADA" label caps, línea accent, nombre display 3.2rem (2026-06-29).
-- ✅ **Block-head accent borders** — `border-left: 2px solid var(--accent)` en secciones de resultados (2026-06-29).
-- ✅ **cmp-winner highlight** — border accent + glow sutil en la tarjeta ganadora de la comparativa (2026-06-29).
-- ✅ **Explicar por qué el modelo supera al ELO solo** — card "ML vs. ELO Puro" en panel de resultados articula el lift (ranking/edad/is_unranked) al usuario (2026-06-27).
-
-### R3 — Funcionalidad: simular torneo
-- Simular un cuadro completo de un torneo actual (ATP 250/500/Masters/Grand Slam): el usuario elige torneo + superficie + lista de participantes (o seed real), y el sistema propaga probabilidades ronda a ronda hasta el campeón.
-- Decisiones de diseño: ¿árbol de eliminatorias manual o draws reales? ¿probabilidad de título por Montecarlo sobre el bracket? ¿endpoint nuevo `/api/tournament`?
-- Empezar simple: bracket de 8 con probabilidades por par y % de título vía simulación.
-
-### R4 — Disclaimer de vigencia del modelo ✅ (2026-06-28)
-- ✅ Banner `#model-disclaimer` en el frontend tras el header: "Modelo entrenado con datos hasta 2024 (test 2025). Las predicciones no reflejan lesiones, retiradas ni forma reciente fuera del ELO."
-- ✅ Fecha de corte servida por el backend (`trained_through`/`tested_on` en `/api/model`, constantes `TRAINED_THROUGH`/`TESTED_ON` en `app.py`); `loadDisclaimer()` la lee, no se hardcodea en el HTML.
-
-### R6 — Visualizaciones de rendimiento del modelo en la UI
-
-`src/evaluate.py` ya genera estos plots en tiempo de entrenamiento (y `main.py` los guarda), pero no se exponen en el frontend:
-
-- **Matriz de confusión** — muestra falsos positivos/negativos reales sobre test 2025 (n=2861). Insight directo: ¿en qué dirección falla el modelo?
-- **Reliability diagram / calibration curve** — ya generado por `graficar_reliability_diagram`. Muestra si el 70% predicho ocurre ~70% de las veces. Clave para honestidad ante el usuario.
-- **Histograma de probabilidades** — distribución de confianza del modelo (¿predice muchos 50-55% o llega a extremos?). Complementa el reliability diagram.
-- **Scatter plot predicción vs resultado** — útil para ver si errores se concentran en partidos cercanos (prob ~50%) o si falla sistemáticamente en algún rango.
-
-Plan de implementación sugerido:
-1. `main.py` ya exporta plots a `static/plots/` (o nuevo directorio). Si no, añadir guardado PNG.
-2. Flask: endpoint `GET /api/plots` devuelve lista, o servir directamente desde `static/`.
-3. Frontend: subpanel "Rendimiento del modelo" (colapsable, igual que "Detalle del modelo") con las imágenes.
-
-No requiere reentrenar — los plots se regeneran con `python main.py`. El scatter predicción-vs-resultado sí requiere guardar `y_prob` del test en `metrics_atp.pkl` si no está ya.
-
-### R7 — UX: navegación por teclado en selector de jugador
-
-Problema actual: el usuario escribe en el input de búsqueda pero debe hacer clic con el ratón para seleccionar de la lista desplegable. No hay navegación ↑↓ + Enter.
-
-Cambios en `templates/index.html` / `static/script.js`:
-- Tecla ↓ en input abre dropdown y mueve foco al primer ítem.
-- ↑↓ navegan entre ítems de la lista (con `aria-activedescendant` actualizado).
-- Enter sobre ítem seleccionado lo confirma (igual que clic).
-- Escape cierra dropdown y devuelve foco al input.
-- Tab fuera del combo cierra dropdown.
-- `role="combobox"` + `aria-expanded` + `aria-autocomplete="list"` para accesibilidad.
-
-Bajo coste, alto impacto en usabilidad (especialmente en desktop sin trackpad).
+- Pulir responsive en tablets (760–1024 px), no solo móvil.
+- Posible: favicon, og:image para compartir, footer HF + GitHub.
+- **Reconsiderar el flujo superficie → predicción**: la superficie afecta al modelo (`diff_elo_sup`), pero el selector antes de ver resultados puede confundir. Evaluar si mostrar primero predicción general y que la superficie sea filtro secundario, o mantener y explicar mejor en la UI.
+- ✅ **Bracket "camino al título"** — rediseño del bracket de torneo como campo de probabilidad: riel por slot (ancho = prob. de supervivencia Monte Carlo), favorito de cada cruce marcado con tick accent, campeón como marcador en oro (token `--gold`, armoniza en las 3 superficies a diferencia del `#f59e0b` hardcodeado anterior). La ronda 1 queda como draw factual; el campo se enciende tras simular (2026-06-30, assets v17).
 
 ### R5 — Actualización de datos de entrenamiento (DECISIÓN ABIERTA)
-Tensión real: añadir 2025 al train mejora la vigencia pero **sacrifica el test ciego honesto** (hoy 2025, n=2861). Opciones a evaluar:
-- **Rolling window**: train hasta año N−1, test año N; reentrenar cada temporada. Mantiene evaluación honesta; el n del test varía año a año.
+Tensión real: añadir 2025 al train mejora vigencia pero **sacrifica el test ciego honesto** (hoy 2025, n=2861). Opciones:
+- **Rolling window**: train hasta año N−1, test año N; reentrenar cada temporada. Mantiene evaluación honesta; el n del test varía.
 - **Walk-forward / backtesting**: evaluar sobre varios años out-of-sample encadenados. Más robusto, más trabajo.
-- El test 2026 (n≈137) es hoy solo referencial por tamaño; a fin de temporada 2026 será un test válido sin tocar el split actual.
-- **No** mover 2025 al train sin sustituir el test por uno igual de honesto. Decidir antes de tocar `main.py`.
+- El test 2026 (n≈137) es solo referencial por tamaño; a fin de temporada 2026 será un test válido sin tocar el split actual.
+- **No** mover 2025 al train sin sustituir el test por uno igual de honesto.
+
+### R6 — Visualizaciones de rendimiento del modelo en la UI
+`src/evaluate.py` ya genera estos plots en entrenamiento, pero no se exponen en el frontend:
+- **Reliability diagram** — ¿el 70% predicho ocurre ~70% de las veces? Clave para honestidad.
+- **Histograma de probabilidades** — distribución de confianza del modelo.
+- **Matriz de confusión** — falsos positivos/negativos reales sobre test 2025 (n=2861).
+- **Scatter predicción vs resultado** — ¿errores concentrados en partidos cercanos (~50%)?
+
+Plan: `main.py` guarda PNGs en `static/plots/` → Flask sirve desde `static/` → subpanel colapsable "Rendimiento del modelo" en frontend. No requiere reentrenar (salvo scatter, que necesita `y_prob` en `metrics_atp.pkl`).
+
+## Resuelto — Épica simulador de torneos (2026-06-28–30)
+
+- **`src/draw.py`** — descarga `ongoing_tourneys.csv` de TML, lista torneos por nivel (G > A > 500 > 250), excluye Davis Cup.
+- **`src/simulator.py`** — motor Monte Carlo: bracket potencia-de-2, caché de matchups, 10 000 iteraciones, devuelve `DataFrame` de % por ronda por jugador.
+- **`app.py`** endpoints:
+  - `GET /api/tournaments` — lista torneos en curso (caché en memoria).
+  - `GET /api/tournament/info` — draw con metadatos de jugadores (rank, ELO).
+  - `GET /api/tournament/simulate` — simulación MC; padding a potencia de 2 con `None`.
+- **Frontend** — modal con selector de torneos poblado dinámicamente, vista lista (% por ronda) y vista bracket "camino al título" (campo de probabilidad: rieles por slot, favorito marcado, campeón en oro).
+- **Tests** — `tests/test_draw.py`, `tests/test_backtest_simulator.py`. 148/148 verdes.
+- `scripts/fetch_simulate.py` y `scripts/simulate_tournament.py` para uso CLI.
+
+## Resuelto — UX y residuos (2026-06-30)
+
+- **R7 — Navegación por teclado en el selector de jugador.** ↑↓ navegan el dropdown, Enter confirma, Escape cierra; `role="combobox"` + `aria-activedescendant`. Implementado en `static/script.js`.
+- **D-RES3 — Notebook `atp_resumen.ipynb`.** Archivado en `archive/` (decisión: no mantener un notebook didáctico desacoplado del modelo de producción).
 
 ## Resuelto — Épica deploy + visual (2026-06-27)
 
-Orden de ejecución: `V2 → V1 → V3 → D1 → D2`.
-
-- **V2** — Fix barras OR: clamp a 50% del track (`* 100` → `* 50`). (`overflow: hidden` descartado: recortaba el overhang del eje central; el clamp ya impide el desbordamiento.)
-- **V1** — Texturas de fondo por superficie: rejilla ortogonal (hard), trama diagonal cruzada (clay), franjas de césped segado (grass).
-- **V3** — Gráfica ELO multi-superficie (Hard/Clay/Grass × 2 jugadores) en panel de resultados; backend expone `elo_surfaces` en `/api/predict`, frontend `renderEloChart`.
-- **D1** — `Dockerfile` + port configurable (`PORT` env var, default 8000 local / 7860 HF).
-- **D2** — `README.md` con header YAML de HF Spaces (`sdk: docker`).
+- **V2** — Fix barras OR: clamp a 50% del track.
+- **V1** — Texturas de fondo por superficie (hard/clay/grass).
+- **V3** — Gráfica ELO multi-superficie en panel de resultados; backend expone `elo_surfaces`.
+- **D1** — `Dockerfile` + port configurable (`PORT` env var). CMD exec-form: `sh -c "exec gunicorn ..."` (gunicorn recibe SIGTERM como PID 1; sin warning `JSONArgsRecommended`).
+- **D2** — `README.md` con header YAML de HF Spaces.
+- **R4** — Banner `#model-disclaimer` con fecha de corte servida por backend (`trained_through`/`tested_on`).
+- **R3 (partial)** — Visual polish: trophy SVG, winner scoreboard como marcador, block-head accent borders, cmp-winner highlight. Assets v15.
+- **Card ML vs ELO** — explica el lift al usuario.
 
 ## Estado final (post re-poda 2026-06-29, 5 features)
-
-Métricas finales (test ciego 2025, n=2861):
 
 - LogReg calibrada: AUC=0.7093, log-loss=0.6225, Brier=0.217, accuracy=65.2%
 - IC95% AUC ≈ ±0.009
 - Gap CV→test Δ=+0.007 (prácticamente nulo)
 - Supera baseline ELO-híbrido (AUC 0.709 vs 0.694, log-loss 0.6225 vs 0.6318, fuera del IC)
-- Modelo único: LogReg iguala a GBM/RF/XGBoost (la complejidad no añade señal)
+- Modelo único: LogReg iguala a GBM/RF/XGBoost
 
 ## Poda de minimalismo (2026-06-26)
 
-Estudio de permutation importance + ablación sobre test 2025 (n=2861):
-
-- **Features 8 → 5.** Podadas `diff_h2h`, `diff_form`, `tourney_level_num`: permutation importance < 0.001 y ablación dentro del IC95% (±0.009). El lift sobre el ELO viene de rank/edad/sin-ranking. El ELO ya absorbe la forma; el H2H es débil tras controlar por ELO.
-- **Modelos 4 → 1.** LogReg calibrada como modelo único. GBM/RF/XGBoost/ensemble no superaban a la LogReg (señal lineal). Retirados `SoftVotingEnsemble`, `comparar_calibracion`, `/api/predict_all`, `/api/models`, `?model=`, panel comparador, dependencia `xgboost`.
-- **Explicabilidad.** `coeficientes_modelo()` (odds-ratio por +1 std), `graficar_coeficientes()`, endpoint `/api/model`, panel "Detalle del modelo".
-- **Fixes de calidad.** `is_unranked` desde máscara NaN real (no centinela 999); baseline ELO **híbrido** (honesto, mismo acceso a superficie que el modelo); calibración sigmoid (Platt) por defecto; `visualize.py` arreglado (unpack 5→3) y EDA = correlación de features reales (antes pairplot de altura, no usada); `tourney_level`/H2H/forma retirados de ELO/inferencia/frontend.
+- **Features 8 → 5.** Podadas `diff_h2h`, `diff_form`, `tourney_level_num`: permutation importance < 0.001, ablación dentro del IC95%.
+- **Modelos 4 → 1.** LogReg calibrada único. GBM/RF/XGBoost/ensemble retirados.
+- **Explicabilidad.** `coeficientes_modelo()` (odds-ratio), `/api/model`, panel "Detalle del modelo".
+- **Fixes.** `is_unranked` desde máscara NaN real; baseline ELO híbrido honesto; calibración Platt.
 
 ## Re-poda + fix skew (2026-06-29)
 
-Entre la poda de junio y esta fecha se habían añadido `diff_matches_played` y `diff_tb_ratio` (7 features). Validación con bootstrap **pareado** sobre test 2025 (n=2861):
+- **Features 7 → 5.** `diff_matches_played` ruido puro; `diff_tb_ratio` significativa estadísticamente pero aporte trivial (+0.002 AUC) → podada por relevancia práctica.
+- **Limpieza.** −135 líneas netas; `calcular_elos_historicos` vuelve a return de 3 valores.
+- **Fix train/serve skew `is_unranked`.** Ahora se sirve el flag del pkl exportado (fallback a `rank>=999` para pkl antiguos).
 
-- **Features 7 → 5.** `diff_matches_played` era ruido puro (perm. imp. ~0, IC de ΔAUC cruzaba 0). `diff_tb_ratio` era estadísticamente significativa (IC de ΔAUC y Δlog-loss enteramente >0) pero el aporte absoluto era trivial (+0.002 AUC) → podada por **relevancia práctica**, no solo significancia. Modelo 5-feat idéntico al 7-feat (AUC=0.7093, log-loss=0.6225) → no costó señal.
-- **Limpieza total.** Eliminada la maquinaria muerta de tie-breaks/experiencia en `src/elo.py` (`_extraer_tiebreaks`, contadores `tb_*`, columnas y export `stats_acumuladas`); `calcular_elos_historicos` vuelve a return de 3 valores. Propagado a `data_processing`, `simulator`, `backtest`, `evaluate`, `app`, `main`. −135 líneas netas.
-- **Fix train/serve skew de `is_unranked`.** La inferencia recalculaba `rank>=999`, marcando como "sin ranking" a ~83/880 jugadores con rank real alto (p.ej. Pospisil 1250, Haase 1199). Ahora se sirve el flag de la máscara NaN exportado en `stats_jugadores` (con fallback a `rank>=999` para pkl antiguos). +2 tests.
-
-## Resuelto
+## Resuelto (histórico)
 
 ### P0 — Críticos
-- **C1** — Train/serve skew: `tourney_level_num=3` constante en inferencia → `src/features.py` fuente única; `construir_features` mapea nivel real.
+- **C1** — Train/serve skew: `tourney_level_num=3` constante en inferencia → `src/features.py` fuente única.
 - **C2** — Métrica equivocada `accuracy` en GridSearch → `neg_log_loss`.
-- **C3** — Gap CV/test diagnosticado: distribution shift 2026, no overfit. CV con embargo temporal (`purged_time_series_splits`).
-- **C4** — Servidor Werkzeug en producción → `gunicorn`.
+- **C3** — Gap CV/test diagnosticado: distribution shift 2026, no overfit. CV con embargo temporal.
+- **C4** — Servidor Werkzeug → `gunicorn`.
 
 ### P1 — Importantes
-- **I1** — Calibración automática sigmoid/isotonic por log-loss (`calibrar_modelo`, `comparar_calibracion`).
-- **I2** — `RANK_CAP=250`, feature `is_unranked`. FEATURES = 8.
-- **I3** — ELO separado general/superficie (GBM aprende el peso). AUC 0.693→0.707.
-- **I4** — Versión sklearn guardada y validada al cargar (`verificar_version_sklearn`). `validar_metadata_pkl` detecta corrupción de pkl. skops evaluado y descartado (no cubre dicts Python puros ni `SoftVotingEnsemble`; riesgo bajo con artefactos propios).
-- **I5** — Jugador desconocido → `"unknown": true` en respuesta API.
+- **I1** — Calibración sigmoid/isotonic automática por log-loss.
+- **I2** — `RANK_CAP=250`, feature `is_unranked`.
+- **I3** — ELO separado general/superficie. AUC 0.693→0.707.
+- **I4** — `verificar_version_sklearn`. `validar_metadata_pkl`.
+- **I5** — Jugador desconocido → `"unknown": true`.
 - **I6** — CSV con columnas faltantes → `ValueError` descriptivo.
 - **I7** — `elo_hibrido()` centralizada en `src/features.py`.
-- **I8** — `crear_dataset_visual` vectorizado con `np.where`.
-- **I9** — Tests coherencia simetrización (`label=1 ↔ diff_rank negativo ↔ diff_elo positivo`), determinismo, endpoints.
-- **I10** — `graficar_reliability_diagram`, `graficar_histograma_probas`, `graficar_learning_curve`.
+- **I8** — `crear_dataset_visual` vectorizado.
+- **I9** — Tests coherencia simetrización, determinismo, endpoints.
+- **I10** — Reliability diagram, histograma probabilidades, learning curve.
 
 ### P2 — Menores
-- **M1** — ELO full-precision (sin redondeo acumulado).
-- **M2** — `/api/predict` valida `player_a == player_b` → 400.
-- **M3** — `custom_tree.py` → `archive/`.
-- **M4** — Permutation importance como alternativa robusta al Gini.
-- **M5** — `test_label_balanced` exacto (seed=42, assert 0.47).
-
-### Épica multi-modelo
-- **E1-E5** — LogReg/RF/GBM/XGBoost calibrados + ensemble soft-voting. `/api/models`, `/api/predict_all`, `?model=`. Panel colapsable frontend.
+- **M1–M5** — ELO full-precision, validación `player_a == player_b`, `custom_tree.py` archivado, permutation importance, test_label_balanced exacto.
 
 ### Calidad estadística
-- **Q1** — IC95% bootstrap en métricas + baseline ELO-crudo.
-- **Q2** — ELO con MOV + K-schedule.
-- **Q3** — Diagnóstico gap CV/test (`diagnosticar_gap_cv_test`).
-- **Q4** — Calibración automática sigmoid/isotonic.
-- **Q5** — Notebook honesto: IC, baseline, reliability diagram.
-- **Q6** — RNG local (`np.random.default_rng`) sin efecto colateral global.
-
-### Otros
-- **G1** — Selector `tourney_level` en frontend (ATP 250/500/Masters/Grand Slam).
-- **G2** — `verificar_version_sklearn` al cargar pkl.
-- **G3** — Tests endpoint `/api/predict` vía test_client.
-- **N1** — `notebooks/atp_resumen.ipynb` didáctico.
-- **N2** — Rediseño UI "court-side telemetry" (identidad por superficie, barras divergentes).
-
-## Residuos resueltos (2026-06-29, limpieza)
-
-- ✅ **D-RES1** — `penalty=['l1','l2']` → `l1_ratio=[0.0, 1.0]` en `src/train.py`. Reentrenado. Warnings de sklearn eliminados (13 → 7). Métricas idénticas.
-- ✅ **D-RES2** — 136/136 tests verdes (los tests de torneo se arreglaron solos en refactor previo).
-- ✅ **D-RES4** — Dockerfile CMD con `exec gunicorn` (gunicorn recibe SIGTERM directamente como PID 1).
-- ✅ **Organización git** — Plan stale `docs/superpowers/plans/2026-06-27-*.md` movido a `archive/`. `docs/superpowers/` añadido a `.gitignore`. `docs/REVISION-CALIDAD-2026-06-26.md` archivado.
-
-## Residuos pendientes
-
-- **D-RES3 · Notebook `atp_resumen.ipynb`.** Sigue en el modelo viejo (8 features) y métricas que no coinciden con producción. Actualizar al modelo de 5 (con celda de IC/baseline/reliability como pedía Q5) **o** archivar para no mantenerlo.
+- **Q1–Q6** — IC95% bootstrap, ELO con MOV + K-schedule, diagnóstico gap CV/test, calibración, notebook, RNG local.
