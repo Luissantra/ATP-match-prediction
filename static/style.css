@@ -1546,21 +1546,40 @@ body.surface-grass .court-bg {
 }
 
 /* 5. Conectores Gráficos (Líneas CSS) */
-
-/* Conector a la derecha de cada matchup */
+/* Cada par (impar arriba / par abajo) alimenta UN card en la ronda siguiente situado
+   en su punto medio. Codos simétricos: el impar desciende media banda, el par asciende
+   media banda; ambos verticales aterrizan en el mismo punto (mid-gap, centro del card
+   siguiente). --ver-line-height = media banda real, fijado en JS por columna. */
 .bracket-matchup:not(.final-match)::after {
     content: '';
     position: absolute;
-    right: -26px; /* mitad de gap horizontal (52px) */
-    top: 50%;
+    right: -26px;          /* mitad del gap horizontal (52px) */
     width: 26px;
-    height: 2px;
-    background: var(--line-dim);
+    height: var(--ver-line-height, 50px);
+    background: none;
+    border-color: var(--line-dim);
+    box-sizing: border-box;
     z-index: 1;
-    transition: background-color 0.25s var(--ease), border-color 0.25s var(--ease);
+    transition: border-color 0.25s var(--ease);
 }
 
-/* Conector a la izquierda de matchups (excepto primera ronda) */
+/* Impar (card superior del par): horizontal en su centro + vertical bajando al punto medio */
+.bracket-matchup.match-odd:not(.final-match)::after {
+    top: 50%;
+    border-top: 2px solid var(--line-dim);
+    border-right: 2px solid var(--line-dim);
+    border-top-right-radius: 6px;
+}
+
+/* Par (card inferior del par): horizontal en su centro + vertical subiendo al punto medio */
+.bracket-matchup.match-even:not(.final-match)::after {
+    bottom: 50%;
+    border-bottom: 2px solid var(--line-dim);
+    border-right: 2px solid var(--line-dim);
+    border-bottom-right-radius: 6px;
+}
+
+/* Conector a la izquierda de matchups (excepto primera ronda): del mid-gap al card */
 .bracket-round:not(:first-child) .bracket-matchup::before {
     content: '';
     position: absolute;
@@ -1570,27 +1589,12 @@ body.surface-grass .court-bg {
     height: 2px;
     background: var(--line-dim);
     z-index: 1;
-}
-
-/* Para partidos pares: la línea de la derecha se convierte en una L invertida para subir y conectar con el impar */
-.bracket-matchup.match-even:not(.final-match)::after {
-    height: calc(var(--ver-line-height) + 2px);
-    bottom: 50%;
-    top: auto;
-    background: none;
-    border-bottom: 2px solid var(--line-dim);
-    border-right: 2px solid var(--line-dim);
-    border-bottom-right-radius: 6px;
+    transition: background-color 0.25s var(--ease);
 }
 
 /* Hover: iluminar conectores en el color de superficie */
-.bracket-matchup:hover::after {
-    background-color: var(--accent);
-}
-.bracket-matchup.match-even:hover::after {
-    background: none;
-    border-color: var(--accent);
-}
+.bracket-matchup:hover::after { border-color: var(--accent); }
+.bracket-matchup:hover::before { background-color: var(--accent); }
 
 /* Personalizar scrollbars del bracket */
 .bracket-container-wrapper::-webkit-scrollbar {

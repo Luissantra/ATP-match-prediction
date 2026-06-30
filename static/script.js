@@ -831,22 +831,24 @@ function setupTournamentModal() {
                 
                 // Calcular altura total requerida por el bracket
                 const totalHeight = r1Matches * (matchHeight + r1Gap);
-                
-                let currentGap = r1Gap;
-                
+
+                // Conteo de partidos por ronda: halving con ceil (N ganadores → ceil(N/2)
+                // partidos; el sobrante recibe un bye). Siempre entero, a diferencia de la
+                // división directa r1Matches/2^r que daba "7.5 Partidos" en draws no potencia-de-2.
+                let prevRoundMatches = r1Matches;
+
                 for (let r = 0; r < numRounds; r++) {
                     const roundName = displayRounds[r];
                     const isChampionCol = (r === numRounds - 1);
-                    const numMatchesInRound = isChampionCol ? 1 : Math.max(1, r1Matches / Math.pow(2, r));
+                    const numMatchesInRound = isChampionCol
+                        ? 1
+                        : (r === 0 ? r1Matches : Math.max(1, Math.ceil(prevRoundMatches / 2)));
+                    prevRoundMatches = numMatchesInRound;
                     
                     const col = document.createElement('div');
                     col.className = 'bracket-round';
                     col.style.height = `${totalHeight}px`;
-                    
-                    // Asignar variables CSS de gap y altura de línea vertical para esta columna
-                    const verLineHeight = matchHeight + currentGap;
-                    col.style.setProperty('--ver-line-height', `${verLineHeight}px`);
-                    
+
                     // Título de la ronda
                     const roundHeader = document.createElement('div');
                     roundHeader.className = 'bracket-round-header';
@@ -860,11 +862,13 @@ function setupTournamentModal() {
                     `;
                     col.appendChild(roundHeader);
                     
-                    // Contenedor de matchups de la columna
+                    // Contenedor de matchups de la columna.
+                    // Sin gap explícito: `space-around` (en CSS) reparte bandas IGUALES,
+                    // de modo que los centros caen en (i+0.5)·banda y el punto medio de cada
+                    // par coincide exactamente con el centro del card de la ronda siguiente.
                     const matchupsWrap = document.createElement('div');
                     matchupsWrap.className = 'bracket-round-matchups';
-                    matchupsWrap.style.gap = `${currentGap}px`;
-                    
+
                     if (isChampionCol) {
                         // Columna del campeón
                         const champCard = document.createElement('div');
@@ -930,10 +934,21 @@ function setupTournamentModal() {
                     
                     col.appendChild(matchupsWrap);
                     drawBracketContainer.appendChild(col);
-                    
-                    // Actualizar el gap para la siguiente ronda según la fórmula: G_{k+1} = 2 * G_k + H
+
+                    // Altura del conector vertical = MEDIA banda real (centro del card → punto
+                    // medio del par). Medimos la distancia centro-a-centro entre los dos primeros
+                    // cards REALMENTE renderizados (getBoundingClientRect fuerza el layout); así es
+                    // exacta aunque la ronda tenga un nº de cards no potencia-de-2 (draws con byes,
+                    // p.ej. 7 ó 3 cards) y sin depender de la altura del header ni del reparto de
+                    // `space-around`. La columna del campeón no tiene conectores → se omite.
                     if (!isChampionCol) {
-                        currentGap = 2 * currentGap + matchHeight;
+                        const cards = matchupsWrap.children;
+                        if (cards.length >= 2) {
+                            const c0 = cards[0].getBoundingClientRect();
+                            const c1 = cards[1].getBoundingClientRect();
+                            const bandCenterToCenter = (c1.top + c1.height / 2) - (c0.top + c0.height / 2);
+                            col.style.setProperty('--ver-line-height', `${bandCenterToCenter / 2}px`);
+                        }
                     }
                 }
             }

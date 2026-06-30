@@ -7,34 +7,46 @@
 > **Visual polish (2026-06-29):** trophy SVG, winner scoreboard, block-head accent borders, cmp-winner highlight.
 > **Épica simulador de torneos (2026-06-30): RESUELTA.** `src/draw.py` + `src/simulator.py` (Monte Carlo) + endpoints `/api/tournaments|info|simulate` + bracket view en UI. Ver R3.
 > **Bracket "camino al título" (2026-06-30):** rediseño del bracket como campo de probabilidad (rieles por slot, favorito marcado, campeón en oro con token `--gold`). Assets v17. Ver R2.
+> **R5 + R6 RESUELTOS (2026-06):** R6 visualizaciones de rendimiento (4 plots Plotly desde `plots_data`) y R5 actualización de datos (Opción C: validación 2020–24/test 2025 + refit de producción 2020–25). Ver secciones abajo.
+> **Estado del backlog (2026-06-30):** casi todo cerrado. Solo quedan ítems residuales de R2 (favicon/og:image, afinar texturas, decisión flujo superficie→predicción).
 
 ## Próximo — Épica refinamiento post-deploy
 
-App en producción con simulador de torneos funcionando. Pulir UX, honestidad y funcionalidad.
+App en producción con simulador de torneos, visualizaciones de rendimiento y refit de producción funcionando. Lo que queda es pulido fino y una decisión de UX.
 
-### R2 — Detalles visuales (pendiente parcial)
-- Estado de carga cuando HF despierta el Space (primer request lento). Mensaje de "despertando modelo".
-- Afinar intensidad de texturas si en producción se ven flojas (clay/grass sutiles).
-- Pulir responsive en tablets (760–1024 px), no solo móvil.
-- Posible: favicon, og:image para compartir, footer HF + GitHub.
-- **Reconsiderar el flujo superficie → predicción**: la superficie afecta al modelo (`diff_elo_sup`), pero el selector antes de ver resultados puede confundir. Evaluar si mostrar primero predicción general y que la superficie sea filtro secundario, o mantener y explicar mejor en la UI.
+### R2 — Detalles visuales (pendiente residual)
+- Afinar intensidad de texturas si en producción se ven flojas (clay/grass sutiles). Subjetivo; revisar en el Space desplegado.
+- **Reconsiderar el flujo superficie → predicción** (decisión, no código): la superficie afecta al modelo (`diff_elo_sup`), pero el selector antes de ver resultados puede confundir. Evaluar si mostrar primero predicción general y que la superficie sea filtro secundario, o mantener y explicar mejor en la UI.
+- ✅ **Favicon + meta Open Graph** — favicon SVG inline (pelota de tenis con costura, sin asset externo) + `theme-color` + tags OG/Twitter en `templates/index.html` (assets v19).
+- ✅ **Precisión de los conectores del bracket** — codos simétricos exactos (impar baja / par sube media banda real, medida con `getBoundingClientRect`); conteo de partidos por ronda con `ceil` (fin del "7.5 Partidos"). Alineación exacta en draws completos potencia-de-2 (32/64/128); en draws parciales/impares (p.ej. Wimbledon en curso, 60 jugadores) queda un desfase residual ~12px en la ronda de conteo impar. Ver **Limitación conocida** abajo.
+- ✅ **Estado de carga al despertar HF Space** — `#slow-load-warning` + timer en `static/script.js` avisa del primer request lento.
+- ✅ **Responsive en tablets (761–1024 px)** — media query dedicada en `static/style.css`.
+- ✅ **Footer** — `.app-footer` con créditos del modelo + TML-Database.
 - ✅ **Bracket "camino al título"** — rediseño del bracket de torneo como campo de probabilidad: riel por slot (ancho = prob. de supervivencia Monte Carlo), favorito de cada cruce marcado con tick accent, campeón como marcador en oro (token `--gold`, armoniza en las 3 superficies a diferencia del `#f59e0b` hardcodeado anterior). La ronda 1 queda como draw factual; el campo se enciende tras simular (2026-06-30, assets v17).
 
-### R5 — Actualización de datos de entrenamiento (DECISIÓN ABIERTA)
-Tensión real: añadir 2025 al train mejora vigencia pero **sacrifica el test ciego honesto** (hoy 2025, n=2861). Opciones:
-- **Rolling window**: train hasta año N−1, test año N; reentrenar cada temporada. Mantiene evaluación honesta; el n del test varía.
-- **Walk-forward / backtesting**: evaluar sobre varios años out-of-sample encadenados. Más robusto, más trabajo.
-- El test 2026 (n≈137) es solo referencial por tamaño; a fin de temporada 2026 será un test válido sin tocar el split actual.
-- **No** mover 2025 al train sin sustituir el test por uno igual de honesto.
+### Limitación conocida — Bracket en draws no potencia-de-2 / parciales
+El render del bracket y la simulación (`updateBracketWithSimulation`, `step = 2^k` sobre `initialDrawOrder`) asumen un cuadro **potencia-de-2**. Con draws parciales o impares (torneo en curso con byes, p.ej. 60 jugadores) aparecen: nombres de ronda nominales que no cuadran con el conteo real (columnas "1 Partido" de más) y un desfase de ~12px en la unión de la ronda con conteo impar. Solución correcta (pendiente, **no trivial**): renderizar sobre el tamaño padded a potencia-de-2 con byes explícitos, lo que **acopla con el endpoint de simulación** (que ya hace ese padding server-side) y el contrato de datos de `/api/tournament/info`. Mientras tanto los conectores son exactos para los cuadros completos (32/64/128).
 
-### R6 — Visualizaciones de rendimiento del modelo en la UI
-`src/evaluate.py` ya genera estos plots en entrenamiento, pero no se exponen en el frontend:
-- **Reliability diagram** — ¿el 70% predicho ocurre ~70% de las veces? Clave para honestidad.
-- **Histograma de probabilidades** — distribución de confianza del modelo.
-- **Matriz de confusión** — falsos positivos/negativos reales sobre test 2025 (n=2861).
-- **Scatter predicción vs resultado** — ¿errores concentrados en partidos cercanos (~50%)?
+### Idea P2 — Módulo "edge vs mercado" (apuestas, educativo)
+El modelo ya da probabilidad **calibrada** (reliability diagram lo confirma), insumo natural para *value betting*: comparar `prob_victory` contra la prob. implícita de la cuota (`1/cuota` menos margen) y marcar edge positivo. **Veredicto de viabilidad:** viable como ejercicio de honestidad estadística (backtest con cuotas históricas para ver si el edge es positivo o ~cero tras margen), **no** como herramienta para ganar dinero — AUC 0.71 es un modelo interpretable modesto frente a los del mercado, y el feed de cuotas (histórico + live, cobertura ATP) es el cuello de botella real. Enfocarlo como módulo de backtest, nunca como recomendador. Requiere fuente de odds.
 
-Plan: `main.py` guarda PNGs en `static/plots/` → Flask sirve desde `static/` → subpanel colapsable "Rendimiento del modelo" en frontend. No requiere reentrenar (salvo scatter, que necesita `y_prob` en `metrics_atp.pkl`).
+## Resuelto — R6 Visualizaciones de rendimiento en la UI (2026-06)
+
+Subpanel colapsable "Rendimiento del modelo" en el frontend con 4 gráficos **Plotly interactivos** (no PNGs estáticos):
+- **Matriz de confusión** — FP/FN reales sobre test 2025.
+- **Reliability diagram** — calibración (¿el 70% predicho ocurre ~70% de las veces?).
+- **Curva ROC** — con AUC.
+- **Histograma de probabilidades** — distribución de confianza por clase.
+
+`main.py` exporta `metrics['plots_data']` (matrices/series ya muestreadas) en `metrics_atp.pkl`; `/api/model` lo sirve y `renderPlots()` en `static/script.js` los dibuja. No usa `static/plots/` ni reentrena: los datos salen del test de validación 2025.
+
+## Resuelto — R5 Actualización de datos (Opción C: validación + refit de producción)
+
+Split en dos fases en `main.py`, resuelve la tensión "vigencia vs test ciego honesto":
+- **Modelo de validación** — train 2020–2024, **test ciego 2025** (n=2861) intacto. De aquí salen TODAS las métricas reportadas y los `plots_data`.
+- **Modelo de producción (refit)** — reentrenado sobre 2020–2025 completo (`PROD_TRAIN_END_YEAR=2026`); es el que se exporta a `modelos_atp.pkl` y sirve la app. Más vigente sin contaminar la evaluación.
+- Eval secundaria 2026 (n≈137) sobre el modelo de producción: solo referencial.
+- A fin de temporada 2026, 2026 será un test válido por tamaño sin tocar el split.
 
 ## Resuelto — Épica simulador de torneos (2026-06-28–30)
 
