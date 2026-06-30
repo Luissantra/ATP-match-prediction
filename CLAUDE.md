@@ -64,7 +64,7 @@ Pipeline en dos etapas separadas. La **fuente única de verdad del vector de fea
 - Señales mostradas: barra de probabilidad como cancha vista desde arriba, gráfica ELO multi-superficie (`renderEloChart`, barras agrupadas Hard/Clay/Grass × 2 jugadores desde `elo_surfaces`), barras divergentes de `features_debug` (a quién favorece cada factor; son diferencias de feature, no peso del modelo), panel colapsable "Detalle del modelo" (métricas + coeficientes/odds-ratio; barras OR clamped a 50% del track), badge de jugador desconocido (`unknown`).
 - Fondo por superficie: `.court-bg` con textura distinta (`body.surface-hard/clay/grass`): rejilla ortogonal / trama diagonal / franjas de césped.
 - Selector: superficie (Hard/Clay/Grass).
-- Assets enlazados con `?v=N` (cache-busting; actual `v=18`); incrementa N **en los tres** (style.css, format.js, script.js) al cambiar CSS/JS.
+- Assets enlazados con `?v=N` (cache-busting; actual `v=20`); incrementa N **en los tres** (style.css, format.js, script.js) al cambiar CSS/JS.
 - Banner de vigencia (R4): `#model-disclaimer` tras el header; `loadDisclaimer()` lee `trained_through`/`tested_on` de `/api/model` (no hardcodea la fecha de corte en el HTML).
 - Trophy SVG en nav y modal: icono filled (copa sólida + orejas stroke + base escalonada); dos ubicaciones (`#open-tournament-btn` y `.modal-header`).
 - Winner section como marcador de probabilidad: línea accent arriba, nombre en display grande (3.2rem), probabilidad en mono 2.4rem + label "PROBABILIDAD ESTIMADA" en caps pequeño (via `winner-conf` innerHTML desde JS).
@@ -74,7 +74,7 @@ Pipeline en dos etapas separadas. La **fuente única de verdad del vector de fea
 
 ## Métricas (test ciego 2025, n=2861)
 
-LogReg calibrada: AUC=0.709, log-loss=0.6225, Brier=0.217, accuracy=65.0%. IC95% AUC ≈ ±0.009. Gap CV→test Δ=+0.007 (prácticamente nulo). ML supera baseline ELO-híbrido (AUC 0.709 vs 0.694, log-loss 0.6225 vs 0.6318, fuera del IC). El lift sobre el ELO viene de rank/edad/sin-ranking; LogReg iguala a GBM/RF/XGBoost (la complejidad no añade señal). Eval secundaria 2026 (n=137, IC ≈ ±0.043): solo referencial.
+LogReg calibrada: AUC=0.709, log-loss=0.6225, Brier=0.217, accuracy=65.2%. IC95% AUC ≈ ±0.009. Gap CV→test Δ=+0.007 (prácticamente nulo). ML supera baseline ELO-híbrido (AUC 0.709 vs 0.694, log-loss 0.6225 vs 0.6318, fuera del IC). El lift sobre el ELO viene de rank/edad/sin-ranking; LogReg iguala a GBM/RF/XGBoost (la complejidad no añade señal). Eval secundaria 2026 (n=137, IC ≈ ±0.043): solo referencial.
 
 ## Roadmap
 

@@ -57,9 +57,9 @@ async function loadDisclaimer() {
         const info = await fetch('/api/model').then((r) => r.json());
         if (info.trained_through == null || info.tested_on == null) return;
         el.textContent =
-            `Modelo entrenado con datos hasta ${info.trained_through} ` +
-            `(test ${info.tested_on}). Las predicciones no reflejan lesiones, ` +
-            `retiradas ni forma reciente fuera del ELO.`;
+            `Modelo de producción reentrenado con datos hasta ${info.trained_through}. ` +
+            `Métricas medidas en test ciego ${info.tested_on} (modelo de validación que no vio ese año). ` +
+            `Las predicciones no reflejan lesiones, retiradas ni forma reciente fuera del ELO.`;
         el.hidden = false;
     } catch (e) {
         // Sin red: el banner queda oculto (no bloquea la app).

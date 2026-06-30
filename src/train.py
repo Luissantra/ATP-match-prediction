@@ -45,6 +45,10 @@ def entrenar_modelo(X, y, dates=None, embargo_days=7, param_grid=None):
     (best_pipeline, cv_log_loss, best_params)
     """
     if param_grid is None:
+        # sklearn ≥1.8: `l1_ratio` es el parámetro canónico (sustituye a `penalty`, deprecado
+        # y a eliminar en 1.10). liblinear soporta los extremos: l1_ratio=0.0 → L2, l1_ratio=1.0
+        # → L1 (sparse). NO usar valores intermedios (elasticnet, solo solver='saga'). Explora
+        # L1 vs L2 + fuerza de regularización.
         param_grid = {
             'logisticregression__l1_ratio': [0.0, 1.0],  # 0.0=L2, 1.0=L1
             'logisticregression__C': [0.005, 0.01, 0.05, 0.1, 1.0, 10.0]

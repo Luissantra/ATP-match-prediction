@@ -11,7 +11,7 @@ pinned: false
 
 Sistema predictivo de aprendizaje automático para pronosticar resultados de partidos ATP, con énfasis en rigor estadístico: el producto es la *probabilidad* de victoria, no solo el acierto binario.
 
-Datos históricos reales 2020–2026. Train 2020–2024, **test ciego 2025** (n=2861, IC95% AUC ≈ ±0.009).
+Datos históricos reales 2020–2026. Las métricas se miden con un **modelo de validación** (train 2020–2024, **test ciego 2025** intacto, n=2861, IC95% AUC ≈ ±0.009); el **modelo de producción** que sirve la app se reentrena sobre 2020–2025 completo para máxima vigencia, sin contaminar la evaluación.
 
 ---
 
@@ -27,7 +27,7 @@ Rating dinámico por jugador: general + por superficie (Clay / Grass / Hard). Ca
 Simetrización vectorizada: Ganador/Perdedor → Jugador A/B aleatorio con balance 50/50. Todas las features se calculan *pre-partido*, sin información del resultado actual. `is_unranked` usa la máscara NaN real del ranking (no confunde un rank numérico alto con "sin ranking").
 
 ### 3. Modelo único, lineal y explicable
-Regresión logística estandarizada y calibrada (`GridSearchCV(scoring='neg_log_loss')` sobre `C` + CV temporal purgado + `CalibratedClassifierCV` sigmoid). Un estudio de permutation importance + ablación sobre el test 2025 mostró que GBM/RandomForest/XGBoost **no superan** a la LogReg (diferencias dentro del IC95% ±0.009): la señal es lineal en las diferencias de ELO/ranking. Se elige LogReg por el óptimo rigor + explicabilidad (coeficientes = odds-ratio) + minimalismo.
+Regresión logística estandarizada y calibrada (`GridSearchCV(scoring='neg_log_loss')` sobre `C` y regularización L1/L2 + CV temporal purgado + `CalibratedClassifierCV` sigmoid). Un estudio de permutation importance + ablación sobre el test 2025 mostró que GBM/RandomForest/XGBoost **no superan** a la LogReg (diferencias dentro del IC95% ±0.009): la señal es lineal en las diferencias de ELO/ranking. Se elige LogReg por el óptimo rigor + explicabilidad (coeficientes = odds-ratio) + minimalismo.
 
 ### 4. 5 features, fuente única, sin train/serve skew
 `src/features.py` es la fuente de verdad: entrenamiento e inferencia construyen el mismo vector en el mismo orden.
@@ -55,7 +55,7 @@ A partir del cuadro real de un torneo ATP en curso (descargado de TML-Database),
 | **LogReg calibrada** | **0.709** | **0.6225** | [0.690–0.728] |
 | Baseline ELO-híbrido | 0.694 | 0.6318 | [0.676–0.714] |
 
-- Accuracy: **65.0%** · Brier: 0.217 (azar = 50% / 0.25)
+- Accuracy: **65.2%** · Brier: 0.217 (azar = 50% / 0.25)
 - Gap CV→test: Δ=+0.007 — prácticamente nulo
 - El modelo supera al baseline ELO-híbrido (mismo acceso a la superficie): AUC +0.015, log-loss −0.009, fuera del IC — el lift es real y viene de rank/edad/sin-ranking
 - LogReg iguala a GBM/RandomForest/XGBoost (diferencias dentro del IC): la complejidad no añade señal demostrable
